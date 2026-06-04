@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Xeno-Evolution: Kozmický Zrod</title>
+    <title>Xeno-Evolution: Od Impaktu k Životu</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
         #gameContainer { position: relative; width: 100%; height: 100%; }
         canvas { width: 100%; height: 100%; display: block; }
 
@@ -15,9 +15,8 @@
             position: absolute; bottom: 30px; left: 16px; right: 16px;
             background: rgba(2, 4, 10, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(0, 255, 204, 0.25); padding: 16px; border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,255,204,0.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
             display: flex; flex-direction: column; gap: 10px; z-index: 10;
-            transition: all 0.5s ease;
         }
         #ai-header { font-size: 11px; color: #00ffcc; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; display: flex; justify-content: space-between; }
         #ai-text { color: #d1f7ff; font-size: 14px; min-height: 44px; line-height: 1.5; font-style: italic; }
@@ -25,28 +24,54 @@
         #ai-input { flex-grow: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(0,255,204,0.4); color: #fff; padding: 12px 16px; border-radius: 25px; font-size: 15px; outline: none; }
         #ai-input:focus { border-color: #00ffcc; box-shadow: 0 0 10px rgba(0,255,204,0.3); }
         #ai-submit { background: linear-gradient(135deg, #00ffcc 0%, #009977 100%); color: #000; border: none; padding: 0 22px; border-radius: 25px; font-weight: bold; font-size: 14px; }
+        
+        /* Horný Bio-Panel */
+        #bio-hud {
+            position: absolute; top: 12px; left: 12px; right: 12px; pointer-events: none;
+            background: rgba(4, 6, 12, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            padding: 14px; border-radius: 14px; border: 1px solid rgba(0,255,204,0.2);
+            display: none; flex-direction: column; gap: 6px; z-index: 10; color: #00ffcc; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .hud-row { display: flex; justify-content: space-between; align-items: center; }
+        .chem-container { display: flex; gap: 8px; margin-top: 2px; }
+        .chem-badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 11px; letter-spacing: 0; }
     </style>
 </head>
 <body>
 
 <div id="gameContainer">
-    <canvas id="spaceCanvas"></canvas>
+    <div id="bio-hud">
+        <div class="hud-row">
+            <div style="font-size: 14px; font-weight: bold; color: #fff;"><span id="hud-planet-name">Planéta</span></div>
+            <div style="font-size: 12px; font-weight: bold; color: #00ffcc;">EVO PTS: <span id="hud-score" style="color:#fff;">0</span></div>
+        </div>
+        <div class="hud-row">
+            <div style="color: #8899a6;">Stabilita DNA: <span id="hud-health" style="color: #ff3366; font-weight: bold;">100%</span></div>
+        </div>
+        <div class="chem-container">
+            <span class="chem-badge" style="background: rgba(255, 77, 77, 0.15); color: #ff4d4d; border: 1px solid rgba(255,77,77,0.4);">H: <span id="stat-h">0</span></span>
+            <span class="chem-badge" style="background: rgba(51, 204, 255, 0.15); color: #33ccff; border: 1px solid rgba(51,204,255,0.4);">C: <span id="stat-c">0</span></span>
+            <span class="chem-badge" style="background: rgba(153, 255, 51, 0.15); color: #99ff33; border: 1px solid rgba(153,255,51,0.4);">O: <span id="stat-o">0</span></span>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
     
     <div id="ai-terminal">
         <div id="ai-header">
-            <span>Kvantový Kormidelník v1.0</span>
+            <span>Kvantový Kormidelník v1.2</span>
             <span id="planet-coordinates" style="color:#88aaff;">Skenujem sektor...</span>
         </div>
         <div id="ai-text">Iniciujem kvantové prepojenie. Sleduj oblohu iPhonu, prichádza zárodok nového sveta...</div>
         <div id="ai-form">
-            <input type="text" id="ai-input" placeholder="Zadaj príkaz pre AI (napr. 'analyzuj')..." autocomplete="off" disabled>
-            <button id="ai-submit" disabled>Odoslať</button>
+            <input type="text" id="ai-input" placeholder="Čakám na dopad..." autocomplete="off" disabled>
+            <button id="ai-submit" disabled>Spustiť</button>
         </div>
     </div>
 </div>
 
 <script>
-    const canvas = document.getElementById('spaceCanvas');
+    const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
     function resize() {
@@ -56,209 +81,194 @@
         ctx.scale(dpr, dpr);
     }
 
-    // Generátor náhodných názvov planét (Zakaždým unikátna)
-    const prefixes = ["Xeno", "Kepler", "Acheron", "Gorgona", "Prometheus", "Chroma"];
-    const suffixes = ["Prime", "Theta-9", "Epsilon", "X", "Zion", "Genesis"];
+    // --- PROCEDURÁLNE GENERATOR PLANÉTY ---
+    const prefixes = ["Xeno", "Kepler", "Acheron", "Gorgona", "Prometheus", "Chroma", "Volcan", "Zion"];
+    const suffixes = ["Prime", "Theta-9", "Epsilon", "X-12", "Genesis", "Exodus", "Nova"];
     const randomName = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + suffixes[Math.floor(Math.random()*suffixes.length)];
 
-    // Náhodná paleta pre novú planétu (Generuje sa po náraze)
     const neonPalettes = [
-        { bg: '#2b0040', core: '#ff00ff', atm: 'rgba(230, 0, 255, 0.4)', name: "Biologicko-Purpurová" },
-        { bg: '#002233', core: '#00ffff', atm: 'rgba(0, 255, 255, 0.4)', name: "Metánovo-Azúrová" },
-        { bg: '#0d2b00', core: '#33ff00', atm: 'rgba(51, 255, 0, 0.4)', name: "Toxicko-Neónová" },
-        { bg: '#331100', core: '#ff5500', atm: 'rgba(255, 85, 0, 0.4)', name: "Magmaticko-Oranžová" }
+        { bg: '#1a0026', core: '#ff00ff', atm: 'rgba(230, 0, 255, 0.35)', name: "Purpurová Hmlovina", slime: '#ff66ff' },
+        { bg: '#001a26', core: '#00ffff', atm: 'rgba(0, 255, 255, 0.35)', name: "Metánový Oceán", slime: '#00ffcc' },
+        { bg: '#061a00', core: '#33ff00', atm: 'rgba(51, 255, 0, 0.35)', name: "Toxická Biosféra", slime: '#99ff33' },
+        { bg: '#260d00', core: '#ff5500', atm: 'rgba(255, 85, 0, 0.35)', name: "Magmatické Jadro", slime: '#ffcc00' }
     ];
     const planetPalette = neonPalettes[Math.floor(Math.random() * neonPalettes.length)];
 
-    // Stav hry: 'ASTEROID', 'IMPACT', 'STABLE'
-    let gameState = 'ASTEROID';
+    // --- STAVOVE PREMENNÉ ---
+    let gameState = 'ASTEROID'; 
     let flashAlpha = 0;
-    let particles = [];
-
-    // Vesmírne objekty
+    let zoomProgress = 0;
+    let score = 0;
     let stars = [];
-    for(let i=0; i<60; i++) {
+    let particles = [];
+    let atoms = [];
+    let enemies = [];
+    let floatingTexts = [];
+
+    // Generovanie hviezd
+    for(let i=0; i<50; i++) {
         stars.push({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, r: Math.random()*1.2, alpha: Math.random() });
     }
 
-    let planet = {
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2 - 40,
-        radius: 75,
-        targetRadius: 75,
-        pulse: 0
-    };
-
-    let asteroid = {
-        x: -50,
-        y: -50,
-        targetX: planet.x - 20,
-        targetY: planet.y - 20,
-        speed: 4,
-        radius: 8,
-        angle: 0
-    };
+    let planet = { x: window.innerWidth / 2, y: window.innerHeight / 2 - 60, radius: 65, targetRadius: 65 };
+    let asteroid = { x: -40, y: -40, targetX: planet.x - 10, targetY: planet.y - 10, speed: 5, radius: 6, angle: 0 };
     asteroid.angle = Math.atan2(asteroid.targetY - asteroid.y, asteroid.targetX - asteroid.x);
 
-    // AI Rozhranie elementy
+    // --- ENTITA HRÁČA (AMÉBA) ---
+    let player = {
+        x: window.innerWidth / 2, y: window.innerHeight / 2,
+        radius: 22, color: planetPalette.slime,
+        targetX: window.innerWidth / 2, targetY: window.innerHeight / 2,
+        vx: 0, vy: 0, speed: 0.09, friction: 0.90,
+        health: 100, stats: { H: 0, C: 0, O: 0 },
+        pulsePhase: 0, hasSpikes: false, shield: false, shieldTimer: 0,
+        cores: [{ox: -6, oy: -6, r: 4.5, cx: 0, cy: 0}, {ox: 6, oy: -4, r: 3.5, cx: 0, cy: 0}]
+    };
+
+    const atomTypes = [
+        { color: '#ff4d4d', type: 'H' },
+        { color: '#33ccff', type: 'C' },
+        { color: '#99ff33', type: 'O' }
+    ];
+
     const aiText = document.getElementById('ai-text');
     const aiInput = document.getElementById('ai-input');
     const aiSubmit = document.getElementById('ai-submit');
     const aiCoords = document.getElementById('planet-coordinates');
+    const bioHud = document.getElementById('bio-hud');
 
-    // Spustenie simulácie dopadu
     setTimeout(() => {
-        aiText.innerText = "UPOZORNENIE: Detekovaný zatúlaný asteroid triedy Xeno-Impact! Gravitácia telesa ho sťahuje na obežnú dráhu.";
-    }, 2000);
+        if(gameState === 'ASTEROID') aiText.innerText = "UPOZORNENIE: Zachytený organický asteroid! Smeruje priamo do gravitačného poľa planéty.";
+    }, 1800);
 
     function createExplosion(x, y) {
-        for(let i=0; i<40; i++) {
+        for(let i=0; i<35; i++) {
             particles.push({
-                x: x, y: y,
-                vx: (Math.random() - 0.5) * 6,
-                vy: (Math.random() - 0.5) * 6,
-                r: Math.random() * 3 + 1,
-                color: planetPalette.core,
-                alpha: 1,
-                decay: Math.random() * 0.02 + 0.01
+                x: x, y: y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
+                r: Math.random() * 2.5 + 1, color: planetPalette.core, alpha: 1, decay: Math.random() * 0.02 + 0.015
             });
         }
     }
 
+    function spawnAtom() {
+        atoms.push({
+            x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
+            radius: 4, pulse: Math.random() * 10, speed: 0.3 + Math.random()*0.4, angle: Math.random() * Math.PI * 2,
+            ...atomTypes[Math.floor(Math.random() * atomTypes.length)]
+        });
+    }
+
+    function spawnEnemy() {
+        enemies.push({
+            x: Math.random() * window.innerWidth, y: Math.random() > 0.5 ? 0 : window.innerHeight,
+            radius: 12, speed: 0.6 + Math.random() * 0.5, pulse: Math.random() * 5
+        });
+    }
+
+    function addFloatingText(x, y, text, color) {
+        floatingTexts.push({ x: x, y: y - 15, text: text, color: color, alpha: 1, vy: -0.8 });
+    }
+
+    // --- AI PRÍKAZY ---
     function processAICommand() {
         const text = aiInput.value.trim().toLowerCase();
         if(!text) return;
         aiInput.value = '';
+        aiInput.blur();
 
-        if(text.includes('analyzuj') || text.includes('sken')) {
-            aiText.innerText = `Skenovanie planéty ${randomName}: Atmosféra zložená prevažne z ionizovaného plynu. Typ vizuálneho štýlu: ${planetPalette.name}. Detekujem prvotné chemické zlúčeniny Hydrogenu (H) a Uhlíka (C). Sme pripravení na biologický zostup do mikro-polievky. Zadaj príkaz "zostup" alebo "zoom".`;
-        } else if (text.includes('zostup') || text.includes('zoom')) {
-            aiText.innerText = "Začínam hyper-zoom do metánového oceánu... (V ďalšej fáze hry sa kamera ponorí pod hladinu k tvojej amébe!)";
-            planet.targetRadius = window.innerWidth * 1.5; // Efekt priblíženia kamery
-        } else {
-            aiText.innerText = `Príkaz '${text}' rozpoznaný, ale systémy sú po náraze nestabilné. Skús zadať 'analyzuj' pre presný sken biomasy.`;
+        if (gameState === 'STABLE') {
+            if(text.includes('analyzuj') || text.includes('sken')) {
+                aiText.innerText = `SKEN: Atmosféra '${planetPalette.name}' potvrdená. Oceán vykazuje vysokú hladinu H, C, O. Zadaj "zostup" pre ponor pod hladinu.`;
+            } else if (text.includes('zostup') || text.includes('zoom') || text.includes('ponor')) {
+                gameState = 'ZOOM';
+                aiText.innerText = "Spúšťam atmosférický zostup. Konfigurujem mikroskopické rozlíšenie senzora...";
+                aiInput.disabled = true; aiSubmit.disabled = true;
+            } else {
+                aiText.innerText = `Neznámy kód '${text}'. Skús zadať 'analyzuj' alebo 'zostup'.`;
+            }
+        } 
+        else if (gameState === 'MICROSCOPE') {
+            if (text.includes('osten') || text.includes('ostne')) {
+                if (player.stats.C >= 5) {
+                    player.hasSpikes = true; player.stats.C -= 5;
+                    aiText.innerText = "MUTÁCIA: Vyvinuté ochranné proteínové ostne. Môžeš likvidovať nepriateľov nárazom!";
+                } else {
+                    aiText.innerText = "ZLYHANIE: Nedostatok materiálu. Potrebuješ aspoň 5x Uhlík (C).";
+                }
+            } else if (text.includes('stit') || text.includes('štít')) {
+                if (player.stats.H >= 3 && player.stats.O >= 3) {
+                    player.stats.H -= 3; player.stats.O -= 3;
+                    player.shield = true; player.shieldTimer = 300;
+                    aiText.innerText = "BIOMEMBRÁNA: Energetický štít aktivovaný na 5 sekúnd.";
+                } else {
+                    aiText.innerText = "ZLYHANIE: Nedostatok prvkov. Potrebuješ 3x H a 3x O.";
+                }
+            } else {
+                aiText.innerText = "Genetický kód nerozpoznaný. Skús nazbierať atómy a zadať 'vyvin ostne'.";
+            }
+            updateHUD();
         }
     }
 
     aiSubmit.addEventListener('click', processAICommand);
     aiInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') processAICommand(); });
 
+    // Plynulé dotykové ovládanie na iPhone
+    function handleTouch(e) {
+        if (e.touches.length > 0 && gameState === 'MICROSCOPE' && player.health > 0) {
+            const touch = e.touches[0];
+            player.targetX = touch.clientX;
+            player.targetY = touch.clientY;
+        }
+    }
+    window.addEventListener('touchstart', handleTouch);
+    window.addEventListener('touchmove', (e) => { if(gameState==='MICROSCOPE') e.preventDefault(); handleTouch(e); }, { passive: false });
+
+    function updateHUD() {
+        document.getElementById('stat-h').innerText = player.stats.H;
+        document.getElementById('stat-c').innerText = player.stats.C;
+        document.getElementById('stat-o').innerText = player.stats.O;
+        document.getElementById('hud-health').innerText = player.health + "%";
+        document.getElementById('hud-score').innerText = score;
+    }
+
+    // --- LOGIKA UPDATE ---
     function update() {
-        // Animácia hviezd
-        stars.forEach(s => {
-            s.alpha += (Math.random() - 0.5) * 0.05;
-            if(s.alpha < 0) s.alpha = 0; if(s.alpha > 1) s.alpha = 1;
-        });
+        stars.forEach(s => { s.alpha += (Math.random() - 0.5) * 0.03; if(s.alpha<0) s.alpha=0; if(s.alpha>1) s.alpha=1; });
 
         if (gameState === 'ASTEROID') {
             asteroid.x += Math.cos(asteroid.angle) * asteroid.speed;
             asteroid.y += Math.sin(asteroid.angle) * asteroid.speed;
-
             let dist = Math.sqrt((asteroid.x - asteroid.targetX)**2 + (asteroid.y - asteroid.targetY)**2);
             if (dist < 5) {
-                gameState = 'IMPACT';
-                flashAlpha = 1;
+                gameState = 'IMPACT'; flashAlpha = 1;
                 createExplosion(asteroid.x, asteroid.y);
-                
-                // Prechod do stabilného stavu zrodenej planéty
                 setTimeout(() => {
                     gameState = 'STABLE';
-                    aiCoords.innerText = `Planéta: ${randomName}`;
-                    aiText.innerText = `IMPAKT DOKONČENÝ. Asteroid priniesol základné stavebné kamene života. Planéta ${randomName} úspešne vygenerovaná s náhodnou atmosférou. Konzola odomknutá. Napíš príkaz 'analyzuj' pre bio-sken.`;
-                    aiInput.disabled = false;
-                    aiSubmit.disabled = false;
+                    aiCoords.innerText = `Sektor: ${randomName}`;
+                    aiText.innerText = `IMPAKT ÚSPEŠNÝ. Organická hmota dopadla. Vytvorená planéta [${randomName}]. Zadaj príkaz: "analyzuj"`;
+                    aiInput.disabled = false; aiSubmit.disabled = false;
+                    aiInput.placeholder = "Zadaj príkaz...";
                 }, 800);
             }
         }
 
-        if (gameState === 'IMPACT') {
-            if(flashAlpha > 0) flashAlpha -= 0.04;
-        }
+        if (gameState === 'IMPACT' && flashAlpha > 0) flashAlpha -= 0.04;
 
-        if (gameState === 'STABLE') {
-            planet.pulse += 0.01;
-            // Plynulé približovanie (zoom), ak hráč zadal príkaz zostup
-            if (planet.radius < planet.targetRadius) {
-                planet.radius += (planet.targetRadius - planet.radius) * 0.05;
+        if (gameState === 'ZOOM') {
+            zoomProgress += 0.02;
+            planet.radius += (window.innerWidth * 1.4 - planet.radius) * 0.07;
+            if(planet.radius > window.innerWidth * 1.2) {
+                gameState = 'MICROSCOPE';
+                bioHud.style.display = 'flex';
+                document.getElementById('hud-planet-name').innerText = randomName;
+                aiText.innerText = "Sme pod hladinou prvotného oceánu. Dotkni sa displeja a veď amébu prstom. Zbieraj atómy a vyhýbaj sa červeným predátorom!";
+                aiInput.disabled = false; aiSubmit.disabled = false;
+                aiInput.placeholder = "Vyviň: 'ostne' alebo 'stit'...";
+                player.x = window.innerWidth / 2; player.y = window.innerHeight / 2;
+                player.targetX = player.x; player.targetY = player.y;
+                for(let i=0; i<18; i++) spawnAtom();
+                for(let i=0; i<2; i++) spawnEnemy();
+                updateHUD();
             }
         }
-
-        // Update častíc výbuchu
-        for(let i = particles.length - 1; i >= 0; i--) {
-            let p = particles[i];
-            p.x += p.vx; p.y += p.vy;
-            p.alpha -= p.decay;
-            if(p.alpha <= 0) particles.splice(i, 1);
-        }
-    }
-
-    function draw() {
-        ctx.fillStyle = '#000003';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Kreslenie hviezd
-        stars.forEach(s => {
-            ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
-            ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
-        });
-
-        // Kreslenie matnej mŕtvej planéty pred nárazom, alebo živej po náraze
-        if (gameState === 'ASTEROID') {
-            // Surová prázdna planéta
-            ctx.beginPath();
-            ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#111116'; ctx.fill();
-            ctx.strokeStyle = '#22222a'; ctx.lineWidth = 2; ctx.stroke();
-
-            // Asteroid
-            ctx.beginPath();
-            ctx.arc(asteroid.x, asteroid.y, asteroid.radius, 0, Math.PI*2);
-            ctx.fillStyle = '#ff6633'; ctx.fill();
-        }
-
-        if (gameState === 'IMPACT' || gameState === 'STABLE') {
-            ctx.save();
-            // PROCEDURÁLNA ATMOSFÉRA - Žiariaci neónový prstenec okolo planéty
-            let atmosGlow = ctx.createRadialGradient(planet.x, planet.y, planet.radius * 0.8, planet.x, planet.y, planet.radius * 1.3);
-            atmosGlow.addColorStop(0, planetPalette.core);
-            atmosGlow.addColorStop(0.3, planetPalette.atm);
-            atmosGlow.addColorStop(1, 'transparent');
-            
-            ctx.fillStyle = atmosGlow;
-            ctx.beginPath(); ctx.arc(planet.x, planet.y, planet.radius * 1.3, 0, Math.PI * 2); ctx.fill();
-
-            // Telo vygenerovanej planéty
-            let planetGrad = ctx.createRadialGradient(planet.x - 20, planet.y - 20, 10, planet.x, planet.y, planet.radius);
-            planetGrad.addColorStop(0, '#fff');
-            planetGrad.addColorStop(0.2, planetPalette.core);
-            planetGrad.addColorStop(0.7, planetPalette.bg);
-            planetGrad.addColorStop(1, '#000');
-
-            ctx.beginPath();
-            ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
-            ctx.fillStyle = planetGrad; ctx.fill();
-            ctx.restore();
-        }
-
-        // Kreslenie častíc výbuchu
-        particles.forEach(p => {
-            ctx.fillStyle = p.color;
-            ctx.globalAlpha = p.alpha;
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
-            ctx.globalAlpha = 1;
-        });
-
-        // Záblesk pri výbuchu (OLED efekt)
-        if (flashAlpha > 0) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-    }
-
-    function loop() { update(); draw(); requestAnimationFrame(loop); }
-    window.addEventListener('resize', resize);
-    resize(); loop();
-</script>
-
-</body>
-</html>
