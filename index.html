@@ -3,23 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Xeno-Matrix: Real Evolution</title>
+    <title>Xeno-Matrix: Fixed</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
         body, html { width: 100%; height: 100%; overflow: hidden; background-color: #020617; font-family: monospace; }
-        #canvas { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 1; }
+        canvas { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 1; }
         
-        /* Sci-Fi HUD */
         #hud {
             position: absolute; top: env(safe-area-inset-top, 20px); left: 16px; right: 16px;
             padding: 12px; background: rgba(2, 6, 23, 0.85); border: 1px solid #06b6d4;
             border-radius: 8px; z-index: 10; display: flex; justify-content: space-between;
             color: #06b6d4; font-size: 11px; text-shadow: 0 0 4px #06b6d4;
         }
-        .stat { margin-bottom: 4px; }
         .stat span { color: #fff; font-weight: bold; }
 
-        /* Spodný ovládací panel */
         #controls {
             position: absolute; bottom: env(safe-area-inset-bottom, 20px); left: 16px; right: 16px;
             z-index: 10; display: flex; gap: 10px; height: 60px;
@@ -32,15 +29,13 @@
         #evolve-btn {
             flex: 1; background: rgba(2, 6, 23, 0.9); border: 1px solid #ef4444;
             border-radius: 8px; color: #ef4444; font-weight: bold; font-size: 12px;
-            cursor: pointer; letter-spacing: 1px; display: flex; align-items: center;
-            justify-content: center; transition: all 0.2s; opacity: 0.3; pointer-events: none;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; opacity: 0.3; pointer-events: none;
         }
         #evolve-btn.active {
             opacity: 1; pointer-events: auto; background: rgba(239, 68, 68, 0.2);
             border-color: #f43f5e; color: #fff; box-shadow: 0 0 15px #ef4444;
-            animation: pulse 1s infinite alternate;
         }
-        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
     </style>
 </head>
 <body>
@@ -53,13 +48,13 @@
         <div class="stat">BIOMASA: <span id="hud-score">0</span> / <span id="hud-target">150</span></div>
     </div>
     <div style="text-align: right;">
-        <div class="stat">INTEGRITA MEMBRÁNY: <span id="hud-health" style="color:#ef4444;">100%</span></div>
+        <div class="stat">INTEGRITA: <span id="hud-health" style="color:#ef4444;">100%</span></div>
         <div class="stat">MATRICA: <span id="hud-elements">H:0 C:0 O:0</span></div>
     </div>
 </div>
 
 <div id="controls">
-    <div id="terminal">INICIALIZÁCIA... Dotkni sa obrazovky pre pohyb a zber elementov H, C, O.</div>
+    <div id="terminal">Ťahaj prstom kdekoľvek po obrazovke pre pohyb a zber elementov.</div>
     <button id="evolve-btn">EVOLÚCIA</button>
 </div>
 
@@ -78,8 +73,7 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // --- HERNÉ PREMENNÉ ---
-    let stage = 1; // 1: Micro, 2: Macro Cluster, 3: Planetary Grid
+    let stage = 1;
     let score = 0;
     let targetScore = 150;
     let health = 100;
@@ -87,9 +81,9 @@
     let targetZoom = 1;
     let globalTimer = 0;
 
-    let player = { x: width/2, y: height/2, r: 14, vx: 0, vy: 0, targetX: width/2, targetY: height/2 };
+    let player = { x: width/2, y: height/2, r: 15, vx: 0, vy: 0, targetX: width/2, targetY: height/2 };
     let tail = [];
-    for(let i=0; i<6; i++) tail.push({x: player.x, y: player.y});
+    for(let i=0; i<8; i++) tail.push({x: player.x, y: player.y});
 
     let items = [];
     let enemies = [];
@@ -99,78 +93,73 @@
     const types = [{t:'H', c:'#38bdf8'}, {t:'C', c:'#34d399'}, {t:'O', c:'#f43f5e'}];
     let elementsCount = {H:0, C:0, O:0};
 
-    // --- AUDIO GENERÁTOR (Web Audio API) ---
     let audioCtx = null;
     function playTone(freq, type = 'sine', duration = 0.1) {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + duration);
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } catch(e){}
     }
 
-    // --- SPÁVNE NASTAVENIE VSTUPOV ---
-    function handleMove(x, y) {
-        if(health <= 0) return;
-        player.targetX = x;
-        player.targetY = y;
+    // Korektné snímanie dotykov na iOS
+    function inputMove(e) {
+        e.preventDefault();
+        let touch = e.touches ? e.touches[0] : e;
+        player.targetX = touch.clientX;
+        player.targetY = touch.clientY;
     }
-    window.addEventListener('touchstart', (e) => {
-        if(!audioCtx) playTone(220, 'sine', 0.05);
-        handleMove(e.touches[0].clientX, e.touches[0].clientY);
-    });
-    window.addEventListener('touchmove', (e) => { e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
-    window.addEventListener('mousemove', (e) => { if(e.buttons > 0) handleMove(e.clientX, e.clientY); });
+    window.addEventListener('touchstart', (e) => { if(!audioCtx) playTone(220); inputMove(e); }, {passive: false});
+    window.addEventListener('touchmove', inputMove, {passive: false});
+    window.addEventListener('mousemove', (e) => { if(e.buttons > 0) { player.targetX = e.clientX; player.targetY = e.clientY; } });
 
-    // --- POPULÁCIA SVETA ---
     function spawnItem() {
         items.push({
-            x: Math.random() * (width * 2) - width/2,
-            y: Math.random() * (height * 2) - height/2,
+            x: Math.random() * (width * 1.5) - width*0.25,
+            y: Math.random() * (height * 1.5) - height*0.25,
             ...types[Math.floor(Math.random() * types.length)]
         });
     }
     function spawnEnemy() {
         enemies.push({
-            x: Math.random() > 0.5 ? -50 : width + 50,
+            x: Math.random() > 0.5 ? -40 : width + 40,
             y: Math.random() * height,
-            r: 8, speed: stage === 1 ? 1.5 : 2.5
+            r: 8, vx: 0, vy: 0
         });
     }
-    for(let i=0; i<30; i++) spawnItem();
-    for(let i=0; i<5; i++) spawnEnemy();
 
-    // --- EVOLUČNÝ SKOK ---
+    for(let i=0; i<25; i++) spawnItem();
+    for(let i=0; i<4; i++) spawnEnemy();
+
     const evolveBtn = document.getElementById('evolve-btn');
     evolveBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if(score >= targetScore) {
             stage++;
-            playTone(440, 'sawtooth', 0.5);
+            playTone(440, 'sawtooth', 0.4);
+            score = 0;
+            document.getElementById('hud-score').innerText = score;
+            
             if(stage === 2) {
-                targetScore = 600;
-                targetZoom = 0.6; // REÁLNE ODDIALENIE KAMERY
-                player.r = 25;
-                document.getElementById('terminal').innerText = "FAZA 2: Tkanivový Cluster aktivovaný. Detegujem pokročilé roje parazitov.";
+                targetScore = 400;
+                targetZoom = 0.6;
+                player.r = 22;
+                document.getElementById('terminal').innerText = "FAZA 2: Makro-Cluster. Detegujem mutované parazitické formy!";
                 document.getElementById('hud-stage').innerText = "2. MACRO-CLUSTER";
-                for(let i=0; i<8; i++) spawnEnemy();
+                for(let i=0; i<6; i++) spawnEnemy();
             } else if(stage === 3) {
-                targetScore = 9999;
-                targetZoom = 0.35; // MASÍVNE ODDIALENIE NA PLANÉTU
-                document.getElementById('terminal').innerText = "FAZA 3: Planetárna Expanzia. Klikaj na maticu uzlov a obsadzuj planétu spórami.";
+                targetScore = 1000;
+                targetZoom = 0.35;
+                document.getElementById('terminal').innerText = "FAZA 3: Planetárna sieť. Obsaď biele uzly dotykom améby.";
                 document.getElementById('hud-stage').innerText = "3. PLANETÁRNA SIEŤ";
-                // Generovanie planetárnych uzlov
-                for(let i=0; i<15; i++) {
-                    planetaryNodes.push({
-                        x: Math.random() * (width * 2) - width/2,
-                        y: Math.random() * (height * 2) - height/2,
-                        captured: false, r: 20
-                    });
+                for(let i=0; i<12; i++) {
+                    planetaryNodes.push({ x: Math.random()*width*2 - width/2, y: Math.random()*height*2 - height/2, captured: false, r: 25 });
                 }
             }
             evolveBtn.classList.remove('active');
@@ -178,190 +167,143 @@
         }
     });
 
-    // --- HLAVNÝ HERNÝ CYKLUS (60FPS plynulý chod) ---
     function loop() {
         globalTimer += 0.05;
-        
-        // Plynulý prechod kamery (Zoom)
         cameraZoom += (targetZoom - cameraZoom) * 0.05;
 
         if (health > 0) {
-            // Pohyb hráča
-            player.vx += (player.targetX - player.x) * 0.05;
-            player.vy += (player.targetY - player.y) * 0.05;
-            player.vx *= 0.85; player.vy *= 0.85;
-            player.x += player.vx; player.y += player.vy;
+            // Fyzika pohybu
+            let dx = player.targetX - player.x;
+            let dy = player.targetY - player.y;
+            player.x += dx * 0.08;
+            player.y += dy * 0.08;
 
-            // Pohyb chvosta (Kinematika)
-            let lastX = player.x; let lastY = player.y;
+            // Chvost
+            let lx = player.x; let ly = player.y;
             tail.forEach(seg => {
-                seg.x += (lastX - seg.x) * 0.35;
-                seg.y += (lastY - seg.y) * 0.35;
-                lastX = seg.x; lastY = seg.y;
+                seg.x += (lx - seg.x) * 0.3;
+                seg.y += (ly - seg.y) * 0.3;
+                lx = seg.x; ly = seg.y;
             });
 
-            // Logika kolízií s prvkami
+            // Kolízie prvkov
             for(let i = items.length-1; i >= 0; i--) {
                 let it = items[i];
-                let dist = Math.hypot(player.x - it.x, player.y - it.y);
-                if(dist < player.r + 6) {
-                    score += 25;
+                if(Math.hypot(player.x - it.x, player.y - it.y) < player.r + 8) {
+                    score += 15;
                     elementsCount[it.t]++;
-                    playTone(300 + score, 'sine', 0.08);
-                    
-                    // Vytvorenie časticového efektu zberu
-                    for(let p=0; p<5; p++) {
-                        particles.push({x: it.x, y: it.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, c: it.c, life: 1});
-                    }
-
+                    playTone(300 + score, 'sine', 0.05);
+                    for(let p=0; p<4; p++) particles.push({x: it.x, y: it.y, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, c: it.c, l: 1});
                     items.splice(i, 1);
                     spawnItem();
                     
                     document.getElementById('hud-score').innerText = score;
                     document.getElementById('hud-elements').innerText = `H:${elementsCount.H} C:${elementsCount.C} O:${elementsCount.O}`;
                     
-                    if(score >= targetScore && evolveBtn.className === "action-btn") {
+                    // TU BOLA CHYBA - opravené overenie aktivácie tlačidla
+                    if(score >= targetScore) {
                         evolveBtn.classList.add('active');
                     }
                 }
             }
 
-            // Umelá inteligencia parazitov (Prenasledovanie)
+            // AI nepriateľov
             enemies.forEach(en => {
-                let angle = Math.atan2(player.y - en.x, player.x - en.x);
-                // Jednoduchý vektorový ťah k hráčovi
-                en.x += (player.x - en.x) * (en.speed * 0.01);
-                en.y += (player.y - en.y) * (en.speed * 0.01);
+                let angle = Math.atan2(player.y - en.y, player.x - en.x);
+                let speed = stage === 1 ? 1.2 : 2.2;
+                en.x += Math.cos(angle) * speed;
+                en.y += Math.sin(angle) * speed;
 
-                let dist = Math.hypot(player.x - en.x, player.y - en.y);
-                if(dist < player.r + en.r) {
-                    health -= 0.4;
+                if(Math.hypot(player.x - en.x, player.y - en.y) < player.r + en.r) {
+                    health -= 0.3;
                     document.getElementById('hud-health').innerText = Math.max(0, Math.floor(health)) + "%";
-                    if(health <= 0) {
-                        playTone(100, 'sawtooth', 0.8);
-                        document.getElementById('terminal').innerText = "KRITICKÉ ZLYHANIE: Membrána kolabovala. Obnov stránku.";
-                    }
+                    if(health <= 0) document.getElementById('terminal').innerText = "MEMBRÁNA ZNIČENÁ. REFRESHNI PRE RESTART.";
                 }
             });
 
-            // Fáza 3 klikanie na planetárne uzly
+            // Fáza 3 uzly
             if(stage === 3) {
                 planetaryNodes.forEach(node => {
-                    let dist = Math.hypot(player.x - node.x, player.y - node.y);
-                    if(dist < player.r + node.r && !node.captured) {
+                    if(Math.hypot(player.x - node.x, player.y - node.y) < player.r + node.r && !node.captured) {
                         node.captured = true;
-                        score += 100;
-                        playTone(600, 'triangle', 0.3);
-                        document.getElementById('terminal').innerText = "UZOL OBSADENÝ. Kvantová sieť sa rozširuje.";
+                        score += 50;
+                        playTone(520, 'triangle', 0.2);
+                        document.getElementById('hud-score').innerText = score;
                     }
                 });
             }
         }
 
-        // Aktualizácia častíc
         particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.life -= 0.03;
-            if(p.life <= 0) particles.splice(i, 1);
+            p.x += p.vx; p.y += p.vy; p.l -= 0.04;
+            if(p.l <= 0) particles.splice(i, 1);
         });
 
-        // --- HOLOGRAFICKÉ RENDEROWANIE (Čistý Sci-Fi vizuál) ---
+        // RENDER
         ctx.fillStyle = '#020617';
         ctx.fillRect(0, 0, width, height);
 
         ctx.save();
-        // Aplikácia reálneho zoomu kamery vycentrovanej na hráča
         ctx.translate(width/2, height/2);
         ctx.scale(cameraZoom, cameraZoom);
         ctx.translate(-player.x, -player.y);
 
-        // Kreslenie High-Tech mriežky pozadia
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.05)';
+        // Mriežka
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.06)';
         ctx.lineWidth = 1;
-        let gridSize = 60;
-        let startX = player.x - width / cameraZoom;
-        let endX = player.x + width / cameraZoom;
-        let startY = player.y - height / cameraZoom;
-        let endY = player.y + height / cameraZoom;
-
-        for(let x = startX - (startX % gridSize); x < endX; x += gridSize) {
-            ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke();
-        }
-        for(let y = startY - (startY % gridSize); y < endY; y += gridSize) {
-            ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
+        for(let x = player.x - width/cameraZoom; x < player.x + width/cameraZoom; x += 50) {
+            ctx.beginPath(); ctx.moveTo(x, player.y - height/cameraZoom); ctx.lineTo(x, player.y + height/cameraZoom); ctx.stroke();
         }
 
-        // Kreslenie chemických prvkov (Ostré vektory s aurou)
+        // Kreslenie prvkov
         items.forEach(it => {
             ctx.strokeStyle = it.c;
             ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(it.x, it.y, 6, 0, Math.PI*2);
-            ctx.stroke();
-            // Dátový stred uzla
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(it.x-1, it.y-1, 2, 2);
+            ctx.beginPath(); ctx.arc(it.x, it.y, 5, 0, Math.PI*2); ctx.stroke();
         });
 
-        // Kreslenie parazitov (Ostré bojové trojuholníky)
+        // Kreslenie nepriateľov
         enemies.forEach(en => {
             ctx.strokeStyle = '#ef4444';
             ctx.lineWidth = 2;
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
             ctx.beginPath();
-            ctx.moveTo(en.x, en.y - en.r);
-            ctx.lineTo(en.x + en.r, en.y + en.r);
-            ctx.lineTo(en.x - en.r, en.y + en.r);
-            ctx.closePath();
-            ctx.stroke(); ctx.fill();
+            ctx.moveTo(en.x, en.y - en.r); ctx.lineTo(en.x + en.r, en.y + en.r); ctx.lineTo(en.x - en.r, en.y + en.r);
+            ctx.closePath(); ctx.stroke();
         });
 
-        // Kreslenie planetárnych uzlov vo Fáze 3
+        // Fáza 3 uzly
         if(stage === 3) {
             planetaryNodes.forEach(node => {
-                ctx.strokeStyle = node.captured ? '#34d399' : '#64748b';
-                ctx.lineWidth = 3;
+                ctx.strokeStyle = node.captured ? '#34d399' : '#ffffff';
+                ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.arc(node.x, node.y, node.r, 0, Math.PI*2); ctx.stroke();
-                if(node.captured) {
-                    ctx.fillStyle = 'rgba(52, 211, 153, 0.2)';
-                    ctx.fill();
-                }
             });
         }
 
-        // Kreslenie časticového efektu
+        // Častice
         particles.forEach(p => {
             ctx.fillStyle = p.c;
-            ctx.globalAlpha = p.life;
+            ctx.globalAlpha = p.l;
             ctx.fillRect(p.x, p.y, 3, 3);
         });
         ctx.globalAlpha = 1;
 
-        // Kreslenie CHVOSTA AMÉBY (Čisté geometrické linky)
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+        // Chvost hráča
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
         ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(player.x, player.y);
+        ctx.beginPath(); ctx.moveTo(player.x, player.y);
         tail.forEach(seg => ctx.lineTo(seg.x, seg.y));
         ctx.stroke();
 
-        // Kreslenie HLAVNÉHO JADRA (Holografické kružnice)
-        if (health > 0) {
+        // Hráč
+        if(health > 0) {
             ctx.strokeStyle = '#06b6d4';
             ctx.lineWidth = 2;
-            ctx.fillStyle = 'rgba(6, 182, 212, 0.1)';
+            ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
             ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.stroke(); ctx.fill();
-
-            // Skenovací prstenec (Pulzujúci efekt)
-            ctx.strokeStyle = 'rgba(6, 182, 212, 0.3)';
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, player.r + Math.sin(globalTimer)*4, 0, Math.PI*2);
-            ctx.stroke();
             
-            // Stredový nitkový kríž (Zameriavač)
             ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(player.x - 4, player.y); ctx.lineTo(player.x + 4, player.y); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(player.x, player.y - 4); ctx.lineTo(player.x, player.y + 4,); ctx.stroke();
+            ctx.beginPath(); ctx.arc(player.x, player.y, 3, 0, Math.PI*2); ctx.fill();
         }
 
         ctx.restore();
