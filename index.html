@@ -3,315 +3,271 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Xeno-Matrix: Fixed</title>
+    <title>Amoeba Evolution 3D - Mobile Version</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #020617; font-family: monospace; }
-        canvas { position: absolute; top:0; left:0; width: 100%; height: 100%; z-index: 1; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #040914; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         
-        #hud {
+        /* Moderné iOS HUD rozhranie (Glassmorphism) */
+        #glass-hud {
             position: absolute; top: env(safe-area-inset-top, 20px); left: 16px; right: 16px;
-            padding: 12px; background: rgba(2, 6, 23, 0.85); border: 1px solid #06b6d4;
-            border-radius: 8px; z-index: 10; display: flex; justify-content: space-between;
-            color: #06b6d4; font-size: 11px; text-shadow: 0 0 4px #06b6d4;
+            padding: 14px 18px; background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px; z-index: 10; display: flex; justify-content: space-between; color: #fff;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
-        .stat span { color: #fff; font-weight: bold; }
-
-        #controls {
-            position: absolute; bottom: env(safe-area-inset-bottom, 20px); left: 16px; right: 16px;
-            z-index: 10; display: flex; gap: 10px; height: 60px;
+        .hud-panel h2 { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; margin-bottom: 4px; font-weight: 700; }
+        .hud-panel p { font-size: 16px; font-weight: 300; letter-spacing: 0.5px; }
+        
+        /* Sci-fi tlačidlo pre evolučný skok */
+        #evolution-trigger {
+            position: absolute; bottom: env(safe-area-inset-bottom, 20px); left: 50%; transform: translateX(-50%);
+            z-index: 10; padding: 16px 36px; background: #ffffff; color: #000000; border: none;
+            border-radius: 30px; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase;
+            box-shadow: 0 10px 30px rgba(255,255,255,0.25); display: none; transition: all 0.3s ease;
         }
-        #terminal {
-            flex: 2; background: rgba(2, 6, 23, 0.9); border: 1px solid #10b981;
-            border-radius: 8px; padding: 10px; color: #10b981; font-size: 11px;
-            display: flex; align-items: center; text-shadow: 0 0 3px #10b981;
-        }
-        #evolve-btn {
-            flex: 1; background: rgba(2, 6, 23, 0.9); border: 1px solid #ef4444;
-            border-radius: 8px; color: #ef4444; font-weight: bold; font-size: 12px;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s; opacity: 0.3; pointer-events: none;
-        }
-        #evolve-btn.active {
-            opacity: 1; pointer-events: auto; background: rgba(239, 68, 68, 0.2);
-            border-color: #f43f5e; color: #fff; box-shadow: 0 0 15px #ef4444;
+        #evolution-trigger.ready { display: block; animation: pulseGlow 1.5s infinite alternate; }
+        @keyframes pulseGlow { 
+            from { transform: translate(-50%, 0) scale(1); box-shadow: 0 10px 25px rgba(255,255,255,0.2); } 
+            to { transform: translate(-50%, -5px) scale(1.03); box-shadow: 0 15px 35px rgba(14,165,233,0.5); } 
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-<canvas id="canvas"></canvas>
+<div id="canvas-container"></div>
 
-<div id="hud">
-    <div>
-        <div class="stat">FAZA: <span id="hud-stage">1. MIKRO-JADRO</span></div>
-        <div class="stat">BIOMASA: <span id="hud-score">0</span> / <span id="hud-target">150</span></div>
+<div id="glass-hud">
+    <div class="hud-panel">
+        <h2>Evolúcia</h2>
+        <p id="txt-stage">1. Mikro-Bunka</p>
     </div>
-    <div style="text-align: right;">
-        <div class="stat">INTEGRITA: <span id="hud-health" style="color:#ef4444;">100%</span></div>
-        <div class="stat">MATRICA: <span id="hud-elements">H:0 C:0 O:0</span></div>
+    <div class="hud-panel" style="text-align: right;">
+        <h2>Biomasa</h2>
+        <p id="txt-biomass" style="color: #0ea5e9; font-weight: 600;">0%</p>
     </div>
 </div>
 
-<div id="controls">
-    <div id="terminal">Ťahaj prstom kdekoľvek po obrazovke pre pohyb a zber elementov.</div>
-    <button id="evolve-btn">EVOLÚCIA</button>
-</div>
+<button id="evolution-trigger">Skočiť do makro-fázy</button>
 
 <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+    // --- GLSL SHADERY PRE ORGANICKÚ MEMBRÁNU ---
+    const vertexShader = `
+        uniform float uTime;
+        varying vec2 vUv;
+        varying vec3 vNormal;
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    function resize() {
-        width = window.innerWidth; height = window.innerHeight;
-        canvas.width = width * (window.devicePixelRatio || 1);
-        canvas.height = height * (window.devicePixelRatio || 1);
-        ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+        // Kompaktný 3D Perlinov šum pre plynulé zvlnenie povrchu améby
+        vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+        vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+        float snoise(vec3 v){
+            const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+            const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+            vec3 i  = floor(v + dot(v, C.yyy) );
+            vec3 x0 = v - i + dot(i, C.xxx) ;
+            vec3 g = step(x0.yzx, x0.xyz);
+            vec3 l = 1.0 - g;
+            vec3 i1 = min( g.xyz, l.zxy );
+            vec3 i2 = max( g.xyz, l.zxy );
+            vec3 x1 = x0 - i1 + C.xxx;
+            vec3 x2 = x0 - i2 + C.yyy;
+            vec3 x3 = x0 - D.yyy;
+            i = mod(i, 289.0);
+            vec4 p = permute( permute( permute(
+                        i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                    + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
+                    + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+            float n_ = 0.142857142857;
+            vec3 ns = n_ * D.wyz - D.xzx;
+            vec4 j = p - 49.0 * floor(p * ns.z);
+            vec4 x_ = floor(j * ns.z);
+            vec4 y_ = floor(j - 70.0 * x_ );
+            vec4 x = x_ *ns.x + ns.yyyy;
+            vec4 y = y_ *ns.x + ns.yyyy;
+            vec4 h = 1.0 - abs(x) - abs(y);
+            vec4 b0 = vec4( x.xy, y.xy );
+            vec4 b1 = vec4( x.zw, y.zw );
+            vec4 s0 = floor(b0)*2.0 + 1.0;
+            vec4 s1 = floor(b1)*2.0 + 1.0;
+            vec4 sh = -step(h, vec4(0.0));
+            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+            vec3 p0 = vec3(a0.xy,h.x);
+            vec3 p1 = vec3(a0.zw,h.y);
+            vec3 p2 = vec3(a1.xy,h.z);
+            vec3 p3 = vec3(a1.zw,h.w);
+            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+            p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+            m = m * m;
+            return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
+        }
+
+        void main() {
+            vUv = uv;
+            vNormal = normal;
+            // Živé vlnenie na povrchu mesh-u
+            float noise = snoise(vec3(position.xy * 1.6, uTime * 0.7));
+            vec3 newPosition = position + normal * noise * 0.15;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+        }
+    `;
+
+    const fragmentShader = `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        uniform vec3 uColor;
+
+        void main() {
+            // Fresnelov efekt (Svetielkovanie okrajov v tekutine)
+            float rim = dot(vec3(0.0, 0.0, 1.0), vNormal);
+            rim = clamp(1.0 - rim, 0.0, 1.0);
+            rim = pow(rim, 2.5);
+
+            vec3 color = mix(uColor, vec3(1.0, 1.0, 1.0), rim * 0.5);
+            gl_FragColor = vec4(color, 0.4 + rim * 0.5);
+        }
+    `;
+
+    // --- SETUP ELEMENTOV ---
+    const container = document.getElementById('canvas-container');
+    const txtBiomass = document.getElementById('txt-biomass');
+    const txtStage = document.getElementById('txt-stage');
+    const btnEvolve = document.getElementById('evolution-trigger');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#040914');
+    scene.fog = new THREE.FogExp2('#040914', 0.05);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.z = 10;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    container.appendChild(renderer.domElement);
+
+    // --- SPOLUPRÁCA S DOTYKOM NA MOBILE ---
+    let pointer = { x: 0, y: 0 };
+    let targetPointer = { x: 0, y: 0 };
+
+    function handleTouch(clientX, clientY) {
+        targetPointer.x = (clientX / window.innerWidth) * 2 - 1;
+        targetPointer.y = -(clientY / window.innerHeight) * 2 + 1;
     }
-    window.addEventListener('resize', resize);
-    resize();
+    window.addEventListener('touchmove', (e) => { handleTouch(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+    window.addEventListener('touchstart', (e) => { handleTouch(e.touches[0].clientX, e.touches[0].clientY); });
 
-    let stage = 1;
-    let score = 0;
-    let targetScore = 150;
-    let health = 100;
-    let cameraZoom = 1;
-    let targetZoom = 1;
-    let globalTimer = 0;
+    // --- VYTVORENIE HRÁČA ---
+    const geometry = new THREE.IcosahedronGeometry(1.3, 4);
+    const material = new THREE.ShaderMaterial({
+        vertexShader,
+        fragmentShader,
+        uniforms: {
+            uTime: { value: 0 },
+            uColor: { value: new THREE.Color('#0ea5e9') }
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending
+    });
+    const playerMesh = new THREE.Mesh(geometry, material);
+    scene.add(playerMesh);
 
-    let player = { x: width/2, y: height/2, r: 15, vx: 0, vy: 0, targetX: width/2, targetY: height/2 };
-    let tail = [];
-    for(let i=0; i<8; i++) tail.push({x: player.x, y: player.y});
-
-    let items = [];
-    let enemies = [];
-    let particles = [];
-    let planetaryNodes = [];
-
-    const types = [{t:'H', c:'#38bdf8'}, {t:'C', c:'#34d399'}, {t:'O', c:'#f43f5e'}];
-    let elementsCount = {H:0, C:0, O:0};
-
-    let audioCtx = null;
-    function playTone(freq, type = 'sine', duration = 0.1) {
-        try {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            let osc = audioCtx.createOscillator();
-            let gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + duration);
-        } catch(e){}
+    // --- MIKROSKOPICKÝ PRACH (Pozadie) ---
+    const pGeometry = new THREE.BufferGeometry();
+    const pCount = 100;
+    const pPositions = new Float32Array(pCount * 3);
+    for(let i=0; i<pCount*3; i+=3) {
+        pPositions[i] = (Math.random() - 0.5) * 30;
+        pPositions[i+1] = (Math.random() - 0.5) * 30;
+        pPositions[i+2] = (Math.random() - 0.5) * 15 - 2;
     }
+    pGeometry.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+    const pMaterial = new THREE.PointsMaterial({ size: 0.06, color: '#38bdf8', transparent: true, opacity: 0.4 });
+    const dust = new THREE.Points(pGeometry, pMaterial);
+    scene.add(dust);
 
-    // Korektné snímanie dotykov na iOS
-    function inputMove(e) {
-        e.preventDefault();
-        let touch = e.touches ? e.touches[0] : e;
-        player.targetX = touch.clientX;
-        player.targetY = touch.clientY;
-    }
-    window.addEventListener('touchstart', (e) => { if(!audioCtx) playTone(220); inputMove(e); }, {passive: false});
-    window.addEventListener('touchmove', inputMove, {passive: false});
-    window.addEventListener('mousemove', (e) => { if(e.buttons > 0) { player.targetX = e.clientX; player.targetY = e.clientY; } });
+    // --- AMINOKYSELINY (Potrava) ---
+    const nutrients = [];
+    const nutGeo = new THREE.DodecahedronGeometry(0.18, 1);
+    const nutColors = ['#22c55e', '#ec4899', '#eab308'];
 
-    function spawnItem() {
-        items.push({
-            x: Math.random() * (width * 1.5) - width*0.25,
-            y: Math.random() * (height * 1.5) - height*0.25,
-            ...types[Math.floor(Math.random() * types.length)]
+    function createNutrient() {
+        const nMat = new THREE.MeshBasicMaterial({
+            color: nutColors[Math.floor(Math.random() * nutColors.length)],
+            wireframe: true
         });
+        const mesh = new THREE.Mesh(nutGeo, nMat);
+        mesh.position.set((Math.random() - 0.5) * 16, (Math.random() - 0.5) * 10, 0);
+        scene.add(mesh);
+        nutrients.push(mesh);
     }
-    function spawnEnemy() {
-        enemies.push({
-            x: Math.random() > 0.5 ? -40 : width + 40,
-            y: Math.random() * height,
-            r: 8, vx: 0, vy: 0
-        });
-    }
+    for(let i=0; i<12; i++) createNutrient();
 
-    for(let i=0; i<25; i++) spawnItem();
-    for(let i=0; i<4; i++) spawnEnemy();
+    // --- CYKLUS ---
+    let biomass = 0;
+    let clock = new THREE.Clock();
 
-    const evolveBtn = document.getElementById('evolve-btn');
-    evolveBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if(score >= targetScore) {
-            stage++;
-            playTone(440, 'sawtooth', 0.4);
-            score = 0;
-            document.getElementById('hud-score').innerText = score;
-            
-            if(stage === 2) {
-                targetScore = 400;
-                targetZoom = 0.6;
-                player.r = 22;
-                document.getElementById('terminal').innerText = "FAZA 2: Makro-Cluster. Detegujem mutované parazitické formy!";
-                document.getElementById('hud-stage').innerText = "2. MACRO-CLUSTER";
-                for(let i=0; i<6; i++) spawnEnemy();
-            } else if(stage === 3) {
-                targetScore = 1000;
-                targetZoom = 0.35;
-                document.getElementById('terminal').innerText = "FAZA 3: Planetárna sieť. Obsaď biele uzly dotykom améby.";
-                document.getElementById('hud-stage').innerText = "3. PLANETÁRNA SIEŤ";
-                for(let i=0; i<12; i++) {
-                    planetaryNodes.push({ x: Math.random()*width*2 - width/2, y: Math.random()*height*2 - height/2, captured: false, r: 25 });
+    function update() {
+        requestAnimationFrame(update);
+        const time = clock.getElapsedTime();
+        material.uniforms.uTime.value = time;
+
+        // Plynulé nasledovanie prsta (Lerp)
+        pointer.x += (targetPointer.x * 5.5 - playerMesh.position.x) * 0.06;
+        pointer.y += (targetPointer.y * 3.5 - playerMesh.position.y) * 0.06;
+        playerMesh.position.x = pointer.x;
+        playerMesh.position.y = pointer.y;
+
+        dust.rotation.z = time * 0.01;
+
+        // Detekcia kolízie
+        nutrients.forEach((nut, i) => {
+            nut.rotation.x += 0.01;
+            nut.rotation.y += 0.01;
+
+            if(playerMesh.position.distanceTo(nut.position) < 1.4) {
+                scene.remove(nut);
+                nutrients.splice(i, 1);
+                createNutrient();
+
+                biomass += 10;
+                if(biomass > 100) biomass = 100;
+                txtBiomass.innerText = biomass + "%";
+
+                if(biomass >= 100) {
+                    btnEvolve.classList.add('ready');
                 }
             }
-            evolveBtn.classList.remove('active');
-            document.getElementById('hud-target').innerText = targetScore;
-        }
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    // Klik na Evolúciu -> Kamera reálne odzoomuje o level vyššie
+    btnEvolve.addEventListener('click', () => {
+        let anim = setInterval(() => {
+            camera.position.z += 0.25;
+            if(camera.position.z >= 22) {
+                clearInterval(anim);
+                txtStage.innerText = "2. Tkanivový zhluk";
+                biomass = 0;
+                txtBiomass.innerText = "0%";
+                btnEvolve.classList.remove('ready');
+                material.uniforms.uColor.value.set('#ec4899'); // Zmena farby bunky na znak mutácie
+            }
+        }, 16);
     });
 
-    function loop() {
-        globalTimer += 0.05;
-        cameraZoom += (targetZoom - cameraZoom) * 0.05;
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
 
-        if (health > 0) {
-            // Fyzika pohybu
-            let dx = player.targetX - player.x;
-            let dy = player.targetY - player.y;
-            player.x += dx * 0.08;
-            player.y += dy * 0.08;
-
-            // Chvost
-            let lx = player.x; let ly = player.y;
-            tail.forEach(seg => {
-                seg.x += (lx - seg.x) * 0.3;
-                seg.y += (ly - seg.y) * 0.3;
-                lx = seg.x; ly = seg.y;
-            });
-
-            // Kolízie prvkov
-            for(let i = items.length-1; i >= 0; i--) {
-                let it = items[i];
-                if(Math.hypot(player.x - it.x, player.y - it.y) < player.r + 8) {
-                    score += 15;
-                    elementsCount[it.t]++;
-                    playTone(300 + score, 'sine', 0.05);
-                    for(let p=0; p<4; p++) particles.push({x: it.x, y: it.y, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, c: it.c, l: 1});
-                    items.splice(i, 1);
-                    spawnItem();
-                    
-                    document.getElementById('hud-score').innerText = score;
-                    document.getElementById('hud-elements').innerText = `H:${elementsCount.H} C:${elementsCount.C} O:${elementsCount.O}`;
-                    
-                    // TU BOLA CHYBA - opravené overenie aktivácie tlačidla
-                    if(score >= targetScore) {
-                        evolveBtn.classList.add('active');
-                    }
-                }
-            }
-
-            // AI nepriateľov
-            enemies.forEach(en => {
-                let angle = Math.atan2(player.y - en.y, player.x - en.x);
-                let speed = stage === 1 ? 1.2 : 2.2;
-                en.x += Math.cos(angle) * speed;
-                en.y += Math.sin(angle) * speed;
-
-                if(Math.hypot(player.x - en.x, player.y - en.y) < player.r + en.r) {
-                    health -= 0.3;
-                    document.getElementById('hud-health').innerText = Math.max(0, Math.floor(health)) + "%";
-                    if(health <= 0) document.getElementById('terminal').innerText = "MEMBRÁNA ZNIČENÁ. REFRESHNI PRE RESTART.";
-                }
-            });
-
-            // Fáza 3 uzly
-            if(stage === 3) {
-                planetaryNodes.forEach(node => {
-                    if(Math.hypot(player.x - node.x, player.y - node.y) < player.r + node.r && !node.captured) {
-                        node.captured = true;
-                        score += 50;
-                        playTone(520, 'triangle', 0.2);
-                        document.getElementById('hud-score').innerText = score;
-                    }
-                });
-            }
-        }
-
-        particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.l -= 0.04;
-            if(p.l <= 0) particles.splice(i, 1);
-        });
-
-        // RENDER
-        ctx.fillStyle = '#020617';
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.save();
-        ctx.translate(width/2, height/2);
-        ctx.scale(cameraZoom, cameraZoom);
-        ctx.translate(-player.x, -player.y);
-
-        // Mriežka
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.06)';
-        ctx.lineWidth = 1;
-        for(let x = player.x - width/cameraZoom; x < player.x + width/cameraZoom; x += 50) {
-            ctx.beginPath(); ctx.moveTo(x, player.y - height/cameraZoom); ctx.lineTo(x, player.y + height/cameraZoom); ctx.stroke();
-        }
-
-        // Kreslenie prvkov
-        items.forEach(it => {
-            ctx.strokeStyle = it.c;
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(it.x, it.y, 5, 0, Math.PI*2); ctx.stroke();
-        });
-
-        // Kreslenie nepriateľov
-        enemies.forEach(en => {
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(en.x, en.y - en.r); ctx.lineTo(en.x + en.r, en.y + en.r); ctx.lineTo(en.x - en.r, en.y + en.r);
-            ctx.closePath(); ctx.stroke();
-        });
-
-        // Fáza 3 uzly
-        if(stage === 3) {
-            planetaryNodes.forEach(node => {
-                ctx.strokeStyle = node.captured ? '#34d399' : '#ffffff';
-                ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.arc(node.x, node.y, node.r, 0, Math.PI*2); ctx.stroke();
-            });
-        }
-
-        // Častice
-        particles.forEach(p => {
-            ctx.fillStyle = p.c;
-            ctx.globalAlpha = p.l;
-            ctx.fillRect(p.x, p.y, 3, 3);
-        });
-        ctx.globalAlpha = 1;
-
-        // Chvost hráča
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
-        ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(player.x, player.y);
-        tail.forEach(seg => ctx.lineTo(seg.x, seg.y));
-        ctx.stroke();
-
-        // Hráč
-        if(health > 0) {
-            ctx.strokeStyle = '#06b6d4';
-            ctx.lineWidth = 2;
-            ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
-            ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.stroke(); ctx.fill();
-            
-            ctx.strokeStyle = '#fff';
-            ctx.beginPath(); ctx.arc(player.x, player.y, 3, 0, Math.PI*2); ctx.fill();
-        }
-
-        ctx.restore();
-        requestAnimationFrame(loop);
-    }
-
-    requestAnimationFrame(loop);
+    update();
 </script>
-
 </body>
 </html>
