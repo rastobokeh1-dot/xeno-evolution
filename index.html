@@ -3,22 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Xeno-Evolution: Od Impaktu k Životu</title>
+    <title>Xeno-Evolution: Finálna Singularita</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #02040a; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
         #gameContainer { position: relative; width: 100%; height: 100%; }
         canvas { width: 100%; height: 100%; display: block; }
 
-        /* Horný Bio-Panel - Kompaktný riadok pre horizontálny režim */
+        /* Horný Bio-Panel */
         #bio-hud {
             position: absolute; top: 10px; left: 12px; right: 12px; pointer-events: none;
-            background: rgba(4, 6, 12, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            background: rgba(4, 6, 14, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             padding: 8px 14px; border-radius: 12px; border: 1px solid rgba(0, 255, 204, 0.2);
             display: none; justify-content: space-between; align-items: center; z-index: 10; color: #00ffcc; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
         }
         .chem-container { display: flex; gap: 6px; }
-        .chem-badge { padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px; letter-spacing: 0; }
+        .chem-badge { padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px; }
+        #rarity-tag { font-weight: 900; padding: 2px 6px; border-radius: 4px; display: none; }
         
         /* Spodné Sci-Fi Rozhranie s Tlačidlami */
         #controls-layout {
@@ -26,44 +27,42 @@
             display: flex; gap: 10px; z-index: 10; height: 75px;
         }
         #ai-terminal {
-            flex: 1.8; background: rgba(2, 4, 10, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            flex: 1.8; background: rgba(2, 5, 12, 0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(0, 255, 204, 0.25); padding: 10px 14px; border-radius: 14px;
             display: flex; flex-direction: column; justify-content: center; gap: 4px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8);
         }
         #ai-header { font-size: 10px; color: #00ffcc; letter-spacing: 1px; text-transform: uppercase; font-weight: bold; display: flex; justify-content: space-between; }
-        #ai-text { color: #d1f7ff; font-size: 13px; line-height: 1.4; font-style: italic; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        #ai-text { color: #d1f7ff; font-size: 12px; line-height: 1.4; font-style: italic; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         
         #btn-container { flex: 1.2; display: flex; gap: 8px; }
         .game-btn {
-            flex: 1; background: rgba(6, 12, 24, 0.85); border: 1px solid rgba(0, 255, 204, 0.25);
-            color: #00ffcc; border-radius: 12px; font-weight: bold; font-size: 11px;
+            flex: 1; background: rgba(6, 14, 28, 0.85); border: 1px solid rgba(0, 255, 204, 0.22);
+            color: #00ffcc; border-radius: 12px; font-weight: bold; font-size: 10px;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
             outline: none; -webkit-tap-highlight-color: transparent; cursor: pointer;
-            opacity: 0.3; pointer-events: none; text-transform: uppercase; transition: all 0.2s;
+            opacity: 0.25; pointer-events: none; text-transform: uppercase; transition: all 0.2s;
         }
         .game-btn span:first-child { font-size: 16px; }
         .game-btn.active { opacity: 1; pointer-events: auto; border-color: #00ffcc; background: rgba(0, 255, 204, 0.15); box-shadow: 0 0 10px rgba(0,255,204,0.2); }
-        .game-btn.active:active { background: rgba(0, 255, 204, 0.35); }
         
         /* Špeciálne Evolučné Tlačidlo */
-        #btn-evolve.ready { opacity: 1; pointer-events: auto; border-color: #ff00ff; color: #ff00ff; background: rgba(255, 0, 255, 0.15); animation: pulseGlow 1.5s infinite; }
-        #btn-evolve.ready:active { background: rgba(255, 0, 255, 0.4); }
-        @keyframes pulseGlow { 0% { box-shadow: 0 0 4px #ff00ff; } 50% { box-shadow: 0 0 16px #ff00ff; } 100% { box-shadow: 0 0 4px #ff00ff; } }
+        .game-btn.ready { opacity: 1; pointer-events: auto; border-color: #ff00ff; color: #ff00ff; background: rgba(255, 0, 255, 0.15); animation: pulseGlow 1.3s infinite; }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 2px #ff00ff; } 50% { box-shadow: 0 0 14px #ff00ff; } 100% { box-shadow: 0 0 2px #ff00ff; } }
     </style>
 </head>
 <body>
 
 <div id="gameContainer">
     <div id="bio-hud">
-        <div style="font-size: 13px; font-weight: bold; color: #fff;"><span id="hud-planet-name">Planéta</span></div>
+        <div style="font-size: 12px; font-weight: bold; color: #fff;"><span id="hud-planet-name">Planéta</span> <span id="rarity-tag"></span></div>
         <div style="font-weight: bold; color: #00ffcc;">EVO PTS: <span id="hud-score" style="color:#fff;">0</span></div>
-        <div style="color: #8899a6;">DNA: <span id="hud-health" style="color: #ff3366; font-weight: bold;">100%</span></div>
+        <div style="color: #8899a6;">STABILITA: <span id="hud-health" style="color: #ff3366; font-weight: bold;">100%</span></div>
         <div class="chem-container">
-            <span class="chem-badge" style="background: rgba(255, 77, 77, 0.12); color: #ff4d4d; border: 1px solid rgba(255,77,77,0.3);">H: <span id="stat-h">0</span></span>
-            <span class="chem-badge" style="background: rgba(51, 204, 255, 0.12); color: #33ccff; border: 1px solid rgba(51,204,255,0.3);">C: <span id="stat-c">0</span></span>
-            <span class="chem-badge" style="background: rgba(153, 255, 51, 0.12); color: #99ff33; border: 1px solid rgba(153,255,51,0.3);">O: <span id="stat-o">0</span></span>
-            <span class="chem-badge" style="background: rgba(191, 85, 236, 0.12); color: #bf55ec; border: 1px solid rgba(191,85,236,0.3);">N: <span id="stat-n">0</span></span>
+            <span class="chem-badge" style="background: rgba(255,77,77,0.15); color: #ff4d4d;">H: <span id="stat-h">0</span></span>
+            <span class="chem-badge" style="background: rgba(51,204,255,0.15); color: #33ccff;">C: <span id="stat-c">0</span></span>
+            <span class="chem-badge" style="background: rgba(153,255,51,0.15); color: #99ff33;">O: <span id="stat-o">0</span></span>
+            <span class="chem-badge" style="background: rgba(191,85,236,0.15); color: #bf55ec;">N: <span id="stat-n">0</span></span>
         </div>
     </div>
 
@@ -72,10 +71,10 @@
     <div id="controls-layout">
         <div id="ai-terminal">
             <div id="ai-header">
-                <span>Kvantový Kormidelník v2.0 • Radca</span>
-                <span id="planet-coordinates" style="color:#88aaff;">Skenujem sektor...</span>
+                <span id="ai-title">Kvantový Kormidelník v3.0 • Spoločník</span>
+                <span id="planet-coordinates" style="color:#88aaff;">Inicializácia vesmíru...</span>
             </div>
-            <div id="ai-text">Iniciujem kvantové prepojenie. Sleduj oblohu iPhonu, prichádza zárodok nového sveta...</div>
+            <div id="ai-text">Prvý impulz vytvoril zárodok reality. Ťukni na displej pre nasmerovanie organického asteroidu na pustú planétu.</div>
         </div>
         <div id="btn-container">
             <button class="game-btn" id="btn-spikes"><span>⚔️</span><span>Ostne</span></button>
@@ -96,141 +95,195 @@
         ctx.scale(dpr, dpr);
     }
 
-    // --- PROCEDURÁLNE GENERATOR PLANÉTY ---
-    const prefixes = ["Xeno", "Kepler", "Acheron", "Gorgona", "Prometheus", "Chroma", "Volcan", "Zion"];
-    const suffixes = ["Prime", "Theta-9", "Epsilon", "X-12", "Genesis", "Exodus", "Nova"];
+    // --- ZVUKOVÝ SYSTÉM (WEB AUDIO API ASMR SYNTH) ---
+    let audioCtx = null;
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+    function playSynth(freq, type, duration, vol=0.1, slideTo=0) {
+        if (!audioCtx) return;
+        try {
+            let osc = audioCtx.createOscillator();
+            let gainNode = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            if(slideTo > 0) {
+                osc.frequency.exponentialRampToValueAtTime(slideTo, audioCtx.currentTime + duration);
+            }
+            gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        } catch(e){}
+    }
+
+    // --- PROCEDURÁLNY VESMÍR PODĽA 1. PROMPTU ---
+    const prefixes = ["Xeno", "Kepler", "Acheron", "Gorgona", "Prometheus", "Chroma", "Volcan", "Zion", "Anthrax"];
+    const suffixes = ["Prime", "Theta-9", "Epsilon", "X-12", "Genesis", "Exodus", "Nova", "Singular"];
     const randomName = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + suffixes[Math.floor(Math.random()*suffixes.length)];
 
     const neonPalettes = [
-        { bg: '#1a0026', core: '#ff00ff', atm: 'rgba(230, 0, 255, 0.35)', name: "Purpurová Hmlovina", slime: '#ff66ff' },
-        { bg: '#001a26', core: '#00ffff', atm: 'rgba(0, 255, 255, 0.35)', name: "Metánový Oceán", slime: '#00ffcc' },
-        { bg: '#061a00', core: '#33ff00', atm: 'rgba(51, 255, 0, 0.35)', name: "Toxická Biosféra", slime: '#99ff33' },
-        { bg: '#260d00', core: '#ff5500', atm: 'rgba(255, 85, 0, 0.35)', name: "Magmatické Jadro", slime: '#ffcc00' }
+        { bg: '#13001c', core: '#ff00ff', atm: 'rgba(230, 0, 255, 0.3)', name: "Purpurová Hmlovina", slime: '#ff66ff' },
+        { bg: '#00121c', core: '#00ffff', atm: 'rgba(0, 255, 255, 0.3)', name: "Metánový Oceán", slime: '#00ffcc' },
+        { bg: '#041400', core: '#33ff00', atm: 'rgba(51, 255, 0, 0.3)', name: "Toxická Biosféra", slime: '#99ff33' },
+        { bg: '#1c0a00', core: '#ff5500', atm: 'rgba(255, 85, 0, 0.3)', name: "Magmatické Jadro", slime: '#ffaa00' }
     ];
     const planetPalette = neonPalettes[Math.floor(Math.random() * neonPalettes.length)];
 
-    // --- STAVOVE PREMENNÉ ---
     let gameState = 'ASTEROID'; 
     let flashAlpha = 0;
     let score = 0;
-    let stars = [];
-    let particles = [];
-    let atoms = [];
-    let enemies = [];
-    let floatingTexts = [];
+    let stars = [], particles = [], atoms = [], enemies = [], floatingTexts = [];
     let counselorCooldown = 0;
+    let backgroundPlankton = [];
+    let rarityStyle = { label: "BEŽNÝ", color: "#8899a6", orbiters: 0 };
 
-    for(let i=0; i<50; i++) {
-        stars.push({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, r: Math.random()*1.2, alpha: Math.random() });
-    }
+    for(let i=0; i<45; i++) stars.push({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, r: Math.random()*1.3, alpha: Math.random() });
+    for(let i=0; i<25; i++) backgroundPlankton.push({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, r: Math.random()*2+1, speed: Math.random()*0.3+0.1 });
 
-    let planet = { x: window.innerWidth / 2, y: window.innerHeight / 2 - 40, radius: 65 };
-    let asteroid = { x: -40, y: -40, targetX: planet.x - 10, targetY: planet.y - 10, speed: 5, radius: 6, angle: 0 };
+    let planet = { x: window.innerWidth / 2, y: window.innerHeight / 2 - 30, radius: 60 };
+    let asteroid = { x: -30, y: -30, targetX: planet.x - 5, targetY: planet.y - 5, speed: 4.5, radius: 5.5, angle: 0 };
     asteroid.angle = Math.atan2(asteroid.targetY - asteroid.y, asteroid.targetX - asteroid.x);
 
-    // --- ENTITA HRÁČA ---
+    // --- ENTITA MIMOZEMŠŤANA ---
     let player = {
-        x: window.innerWidth / 2, y: window.innerHeight / 2,
-        radius: 20, color: planetPalette.slime,
+        x: window.innerWidth / 2, y: window.innerHeight / 2, radius: 18, color: planetPalette.slime,
         targetX: window.innerWidth / 2, targetY: window.innerHeight / 2,
-        vx: 0, vy: 0, speed: 0.09, friction: 0.90,
-        health: 100, stats: { H: 0, C: 0, O: 0, N: 0 },
-        pulsePhase: 0, hasSpikes: false, shield: false, shieldTimer: 0, turboTimer: 0,
+        vx: 0, vy: 0, speed: 0.09, friction: 0.90, health: 100,
+        stats: { H: 0, C: 0, O: 0, N: 0 }, pulsePhase: 0,
+        hasSpikes: false, shield: false, shieldTimer: 0, turboTimer: 0,
         evolutionLevel: 1, history: [],
-        cores: [{ox: -5, oy: -5, r: 4, cx: 0, cy: 0}, {ox: 5, oy: -3, r: 3, cx: 0, cy: 0}]
+        cores: [{ox: -4, oy: -4, r: 3.5, cx: 0, cy: 0}, {ox: 4, oy: -2, r: 2.5, cx: 0, cy: 0}]
     };
 
     const atomTypes = [
-        { color: '#ff4d4d', type: 'H' },
-        { color: '#33ccff', type: 'C' },
-        { color: '#99ff33', type: 'O' },
-        { color: '#bf55ec', type: 'N' } // Dusík pre Turbo
+        { color: '#ff4d4d', type: 'H', freq: 261.63 }, // C4 tón
+        { color: '#33ccff', type: 'C', freq: 329.63 }, // E4 tón
+        { color: '#99ff33', type: 'O', freq: 392.00 }, // G4 tón
+        { color: '#bf55ec', type: 'N', freq: 523.25 }  // C5 tón (Turbo)
     ];
 
     const aiText = document.getElementById('ai-text');
+    const aiTitle = document.getElementById('ai-title');
     const aiCoords = document.getElementById('planet-coordinates');
     const bioHud = document.getElementById('bio-hud');
 
-    setTimeout(() => {
-        if(gameState === 'ASTEROID') aiText.innerText = "UPOZORNENIE: Detekovaný organický asteroid navádzaný na gravitáciu telesa.";
-    }, 1500);
-
-    // Kliknutie na celú obrazovku pre automatický posun z prvej fázy
+    // Inicializácia kliknutím (iOS Audio Unlock)
     window.addEventListener('click', () => {
+        initAudio();
         if (gameState === 'STABLE') {
+            playSynth(150, 'sine', 0.6, 0.2, 400);
             gameState = 'ZOOM';
-            aiText.innerText = "Spúšťam atmosférický zostup. Konfigurujem mikroskopické rozlíšenie senzorov...";
+            aiText.innerText = "Skenujem atmosféru a zostupujem pod hladinu praoceánu. Hľadám známky mikroskopického života...";
         }
     });
 
-    function createExplosion(x, y) {
-        for(let i=0; i<35; i++) {
+    function createExplosion(x, y, color = planetPalette.core) {
+        for(let i=0; i<30; i++) {
             particles.push({
-                x: x, y: y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
-                r: Math.random() * 2.5 + 1, color: planetPalette.core, alpha: 1, decay: Math.random() * 0.02 + 0.015
+                x: x, y: y, vx: (Math.random() - 0.5) * 7, vy: (Math.random() - 0.5) * 7,
+                r: Math.random() * 2 + 1, color: color, alpha: 1, decay: Math.random() * 0.02 + 0.015
             });
         }
     }
 
     function spawnAtom() {
         atoms.push({
-            x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
-            radius: 4, pulse: Math.random() * 10, speed: 0.3 + Math.random()*0.4, angle: Math.random() * Math.PI * 2,
-            ...atomTypes[Math.floor(Math.random() * atomTypes.length)]
+            x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, radius: 4.5, pulse: Math.random() * 10,
+            speed: 0.25 + Math.random()*0.35, angle: Math.random() * Math.PI * 2, ...atomTypes[Math.floor(Math.random() * atomTypes.length)]
         });
     }
 
     function spawnEnemy() {
         enemies.push({
             x: Math.random() * window.innerWidth, y: Math.random() > 0.5 ? 0 : window.innerHeight,
-            radius: 12, speed: 0.6 + Math.random() * 0.4, pulse: Math.random() * 5
+            radius: 11, speed: 0.55 + Math.random() * 0.45, pulse: Math.random() * 5
         });
     }
 
     function addFloatingText(x, y, text, color) {
-        floatingTexts.push({ x: x, y: y - 15, text: text, color: color, alpha: 1, vy: -0.8 });
+        floatingTexts.push({ x: x, y: y - 15, text: text, color: color, alpha: 1, vy: -0.7 });
     }
 
-    // --- LOGIKA DOTYKOVÉHO OVLÁDANIA ---
+    // --- DOTYKY iPHONE ---
     function handleTouch(e) {
         if (e.touches.length > 0 && gameState === 'MICROSCOPE' && player.health > 0) {
-            const touch = e.touches[0];
-            player.targetX = touch.clientX;
-            player.targetY = touch.clientY;
+            player.targetX = e.touches[0].clientX;
+            player.targetY = e.touches[0].clientY;
         }
     }
     window.addEventListener('touchstart', handleTouch);
     window.addEventListener('touchmove', (e) => { if(gameState==='MICROSCOPE') e.preventDefault(); handleTouch(e); }, { passive: false });
 
-    // --- LOGIKA TLAČIDIEL (BEZ KLÁVESNICE) ---
-    document.getElementById('btn-spikes').addEventListener('click', (e) => {
+    // --- TLAČIDLÁ ---
+    document.getElementById('btn-spikes').addEventListener('click', () => {
         if (player.stats.C >= 5 && !player.hasSpikes) {
             player.hasSpikes = true; player.stats.C -= 5;
-            createExplosion(player.x, player.y);
-            aiText.innerText = "MUTÁCIA: Vyvinuté chitinové proteínové ostne. Môžeš útočiť na predátorov!";
+            playSynth(440, 'triangle', 0.2, 0.2, 220);
+            createExplosion(player.x, player.y, '#ff3366');
+            aiText.innerText = "SPOLOČNÍK: Aktivoval si ochranné ostne. Parazitov teraz odrazíš pasívnym dotykom.";
             updateHUD();
         }
     });
 
-    document.getElementById('btn-shield').addEventListener('click', (e) => {
-        if (player.stats.H >= 3 && player.stats.O >= 3) {
+    document.getElementById('btn-shield').addEventListener('click', () => {
+        if (player.stats.H >= 3 && player.stats.O >= 3 && !player.shield) {
             player.stats.H -= 3; player.stats.O -= 3;
             player.shield = true; player.shieldTimer = 300;
-            aiText.innerText = "BIOMEMBRÁNA: Ochranný plazmový štít aktivovaný na 5 sekúnd.";
+            playSynth(180, 'sine', 0.5, 0.25, 180); // nízky hučiaci štít
+            aiText.innerText = "SPOLOČNÍK: Energetická membrána spustená. Sme nezraniteľní.";
             updateHUD();
         }
     });
 
-    document.getElementById('btn-evolve').addEventListener('click', (e) => {
+    document.getElementById('btn-evolve').addEventListener('click', () => {
+        // PRECHOD DO FÁZY 3 (Mnohobunkovec)
         if (score >= 300 && player.evolutionLevel === 1) {
-            player.evolutionLevel = 2;
-            player.radius = 24;
-            player.speed = 0.13; // Permanentné zrýchlenie makro-tvora
-            createExplosion(player.x, player.y);
-            aiText.innerText = "MAKRO-EVOLÚCIA: Dosiahnutá mnohobunková forma! Vyvinuli sme segmentované pohybové ústrojenstvo.";
+            player.evolutionLevel = 2; player.radius = 23; player.speed = 0.12;
+            playEvolutionChord();
+            createExplosion(player.x, player.y, '#ff00ff');
+            aiText.innerText = "EVOLÚCIA FÁZA 3: Dosiahnutá segmentovaná štruktúra. Telo dostáva kinetickú voľnosť.";
+            updateHUD();
+        }
+        // PRECHOD DO FÁZY 4 (Rarita Mimozemšťana - Podľa tvojho 1. promptu!)
+        else if (score >= 800 && player.evolutionLevel === 2) {
+            player.evolutionLevel = 3; player.radius = 28; player.speed = 0.15;
+            
+            // Náhodné určenie rarity biologického druhu
+            const dice = Math.random();
+            if(dice < 0.5) {
+                rarityStyle = { label: "BEŽNÝ DRUH", color: "#00ffcc", orbiters: 2, name: "Xeno-Pod" };
+            } else if(dice < 0.85) {
+                rarityStyle = { label: "VZÁCNY DRUH", color: "#ffaa00", orbiters: 4, name: "Plazmový Leviatan" };
+            } else {
+                rarityStyle = { label: "ULTRA VZÁCNY", color: "#ff00ff", orbiters: 6, name: "Kvantový Architekt" };
+                player.cores.push({ox: 0, oy: 6, r: 4, cx: 0, cy: 0});
+            }
+            
+            playEvolutionChord(350);
+            createExplosion(player.x, player.y, rarityStyle.color);
+            
+            const rTag = document.getElementById('rarity-tag');
+            rTag.innerText = rarityStyle.label;
+            rTag.style.display = "inline-block";
+            rTag.style.backgroundColor = rarityStyle.color + "33";
+            rTag.style.color = rarityStyle.color;
+            rTag.style.border = `1px solid ${rarityStyle.color}`;
+
+            aiText.innerText = `MUTÁCIA TRAGETU: Vyvinul sa z teba [${rarityStyle.label}] s názvom ${rarityStyle.name}! Vizuálna DNA rekonfigurovaná.`;
             updateHUD();
         }
     });
+
+    function playEvolutionChord(baseFreq = 220) {
+        playSynth(baseFreq, 'sine', 0.6, 0.15, baseFreq * 2);
+        playSynth(baseFreq * 1.25, 'sine', 0.6, 0.12, baseFreq * 2.5);
+        playSynth(baseFreq * 1.5, 'sine', 0.6, 0.12, baseFreq * 3);
+    }
 
     function updateHUD() {
         document.getElementById('stat-h').innerText = player.stats.H;
@@ -240,38 +293,53 @@
         document.getElementById('hud-health').innerText = player.health + "%";
         document.getElementById('hud-score').innerText = score;
 
-        // Aktivácia / deaktivácia svietivosti tlačidiel
         const bSpikes = document.getElementById('btn-spikes');
         const bShield = document.getElementById('btn-shield');
         const bEvolve = document.getElementById('btn-evolve');
 
         if (player.stats.C >= 5 && !player.hasSpikes) bSpikes.classList.add('active'); else bSpikes.classList.remove('active');
-        if (player.stats.H >= 3 && player.stats.O >= 3) bShield.classList.add('active'); else bShield.classList.remove('active');
-        if (score >= 300 && player.evolutionLevel === 1) bEvolve.classList.add('ready'); else bEvolve.classList.remove('ready');
-    }
-
-    // --- AUTONÓMNY AI RADCA ---
-    function updateAICounselor() {
-        if (gameState !== 'MICROSCOPE' || player.health <= 0) return;
-
-        if (score >= 300 && player.evolutionLevel === 1) {
-            aiText.innerText = "GENETICKÝ PRELOM: Biomasa je saturovaná na maximum. Klikni na pulzujúce tlačidlo EVOLÚCIA 🧬!";
-        } else if (player.evolutionLevel === 2) {
-            aiText.innerText = "MONITORING: Segmentovaná forma prosperuje. Pohyb je stabilný, rýchlosť v raste.";
-        } else if (player.health < 40) {
-            aiText.innerText = "KRITICKÝ STAV: Stabilita DNA zlyháva! Vyhni sa dravcom a konzumuj základné prvky.";
-        } else if (player.turboTimer > 0) {
-            aiText.innerText = "POZOR: Dusíková reakcia v jadrách. Hyper-pohon améby spustený!";
-        } else if (player.stats.C >= 5 && !player.hasSpikes) {
-            aiText.innerText = "ODPORÚČANIE: Detekujem dostatok Uhlíka (C). Aktivuj dotykom OSTNE ⚔️ pre pasívnu obranu.";
-        } else if (player.stats.H >= 3 && player.stats.O >= 3 && !player.shield) {
-            aiText.innerText = "ANALYTIKA: Zlúčeniny vody pripravené. Máš k dispozícii dočasný energetický ŠTÍT 🛡️.";
+        if (player.stats.H >= 3 && player.stats.O >= 3 && !player.shield) bShield.classList.add('active'); else bShield.classList.remove('active');
+        
+        // Riadenie tlačidla evolúcie podľa fáz
+        if ((score >= 300 && player.evolutionLevel === 1) || (score >= 800 && player.evolutionLevel === 2)) {
+            bEvolve.classList.add('ready');
         } else {
-            aiText.innerText = "SKENER: Oceán je pokojný. Zbieraj H, C, O a hľadaj fialový Dusík (N) pre okamžitý turbo efekt.";
+            bEvolve.classList.remove('ready');
         }
     }
 
-    // --- UPDATE CYKLUS ---
+    // --- INTELIGENTNÝ RADCA / COMPANION ---
+    function updateAICounselor() {
+        if (gameState !== 'MICROSCOPE' || player.health <= 0) return;
+
+        // Fáza 5: Biotechnologická Singularita (Finále hry z 1. promptu)
+        if (score >= 1500 && player.evolutionLevel === 3) {
+            player.evolutionLevel = 4;
+            aiTitle.innerText = "Kvantové Vedomie v4.0 • Singularita";
+            aiText.innerText = "FINÁLE: Život dosiahol bod Singularity! Spoločník sa zlúčil s tvojou DNA. Odomkli sme pokročilé vesmírne technológie. Ovládol si evolúciu planéty!";
+            playEvolutionChord(440);
+            return;
+        }
+
+        if (player.evolutionLevel === 4) return;
+
+        if (score >= 800 && player.evolutionLevel === 2) {
+            aiText.innerText = "RADCA: Sme pripravení na generovanie finálnej biologickej triedy. Aktivuj evolučný skok 🧬.";
+        } else if (score >= 300 && player.evolutionLevel === 1) {
+            aiText.innerText = "RADCA: Dosiahli sme dostatok bio-materiálu. Spusti makro-transformáciu na vyššiu formu.";
+        } else if (player.health < 40) {
+            playSynth(120, 'sawtooth', 0.15, 0.1); // Varovný zvuk nízkého zdravia
+            aiText.innerText = "UPOZORNENIE: Bunkové jadro kolabuje! Konzumuj atómy na stabilizáciu štruktúry.";
+        } else if (player.turboTimer > 0) {
+            aiText.innerText = "ANALÝZA: Dusíkový hyper-pohon je aktívny. Využi rýchlosť na zber.";
+        } else if (player.stats.C >= 5 && !player.hasSpikes) {
+            aiText.innerText = "ODPORÚČANIE: Proteíny uhlíka sú pripravené. Môžeš aktivovať obranné OSTNE ⚔️.";
+        } else {
+            aiText.innerText = "SKENER: Život prosperuje. Nasávaj okolité chemické prvky pre ďalšiu fázu.";
+        }
+    }
+
+    // --- LOGICKÝ CYKLUS ---
     function update() {
         stars.forEach(s => { s.alpha += (Math.random() - 0.5) * 0.03; if(s.alpha<0) s.alpha=0; if(s.alpha>1) s.alpha=1; });
 
@@ -281,27 +349,28 @@
             let dist = Math.sqrt((asteroid.x - asteroid.targetX)**2 + (asteroid.y - asteroid.targetY)**2);
             if (dist < 5) {
                 gameState = 'IMPACT'; flashAlpha = 1;
+                playSynth(70, 'sine', 0.9, 0.4, 30); // Impakt duniaci zvuk
                 createExplosion(asteroid.x, asteroid.y);
                 setTimeout(() => {
                     gameState = 'STABLE';
                     aiCoords.innerText = `Sektor: ${randomName}`;
-                    aiText.innerText = `IMPAKT ÚSPEŠNÝ. Planéta [${randomName}] sformovaná. Ťukni prstom hocikam na obrazovku pre zostup pod hladinu...`;
+                    aiText.innerText = `IMPAKT SEEDING: Planéta [${randomName}] pripravená. Ťukni na obrazovku pre plynulý zostup do hlbín biosféry...`;
                 }, 800);
             }
         }
 
-        if (gameState === 'IMPACT' && flashAlpha > 0) flashAlpha -= 0.04;
+        if (gameState === 'IMPACT' && flashAlpha > 0) flashAlpha -= 0.03;
 
         if (gameState === 'ZOOM') {
-            planet.radius += (window.innerWidth * 1.4 - planet.radius) * 0.07;
-            if(planet.radius > window.innerWidth * 1.1) {
+            planet.radius += (window.innerWidth * 1.5 - planet.radius) * 0.06;
+            if(planet.radius > window.innerWidth * 1.2) {
                 gameState = 'MICROSCOPE';
                 bioHud.style.display = 'flex';
                 document.getElementById('hud-planet-name').innerText = randomName;
                 player.x = window.innerWidth / 2; player.y = window.innerHeight / 2;
                 player.targetX = player.x; player.targetY = player.y;
-                for(let i=0; i<18; i++) spawnAtom();
-                for(let i=0; i<2; i++) spawnEnemy();
+                for(let i=0; i<20; i++) spawnAtom();
+                for(let i=0; i<3; i++) spawnEnemy();
                 updateHUD();
             }
         }
@@ -309,25 +378,28 @@
         if (gameState === 'MICROSCOPE') {
             if (player.health <= 0) return;
 
-            // Ukladanie pozície pre vlnenie tela (Fáza 3 mnohobunkovec)
-            player.history.push({x: player.x, y: player.y});
-            if (player.history.length > 30) player.history.shift();
+            // Paralaxný posun planktónu v pozadí (Uspokojivý hĺbkový vizuál)
+            backgroundPlankton.forEach(p => {
+                p.y += p.speed;
+                if(p.y > window.innerHeight) { p.y = -5; p.x = Math.random()*window.innerWidth; }
+            });
 
-            // Dusíkový Turbo Efekt
+            // Sledovanie chvosta pre Fázu 3 & 4
+            player.history.push({x: player.x, y: player.y});
+            if (player.history.length > 35) player.history.shift();
+
             let currentSpeed = player.speed;
             if (player.turboTimer > 0) {
-                player.turboTimer--;
-                currentSpeed = player.speed * 1.7; // 70% zrýchlenie
+                player.turboTimer--; currentSpeed = player.speed * 1.65;
                 if (Math.random() > 0.4) {
                     particles.push({
-                        x: player.x + (Math.random()-0.5)*10, y: player.y + (Math.random()-0.5)*10,
-                        vx: -player.vx * 0.2, vy: -player.vy * 0.2,
-                        r: Math.random()*2 + 1, color: '#bf55ec', alpha: 0.8, decay: 0.04
+                        x: player.x + (Math.random()-0.5)*12, y: player.y + (Math.random()-0.5)*12,
+                        vx: -player.vx * 0.2, vy: -player.vy * 0.2, r: Math.random()*2+1, color: '#bf55ec', alpha: 0.7, decay: 0.04
                     });
                 }
             }
 
-            // Pohyb
+            // Pohyb s plynulým trením
             let ax = (player.targetX - player.x) * currentSpeed;
             let ay = (player.targetY - player.y) * currentSpeed;
             player.vx = (player.vx + ax) * player.friction;
@@ -336,33 +408,36 @@
 
             if (player.shield) { player.shieldTimer--; if (player.shieldTimer <= 0) player.shield = false; }
 
-            // Pohyb atómov
+            // Pohyb mikro-atómov
             atoms.forEach(atom => {
                 atom.x += Math.cos(atom.angle) * atom.speed; atom.y += Math.sin(atom.angle) * atom.speed;
                 if (atom.x < 0 || atom.x > window.innerWidth) atom.angle = Math.PI - atom.angle;
                 if (atom.y < 0 || atom.y > window.innerHeight) atom.angle = -atom.angle;
             });
 
-            // Kolízie: Hráč + Atómy
+            // Kolízie: Zber chemických prvkov
             for (let i = atoms.length - 1; i >= 0; i--) {
                 let d = Math.sqrt((atoms[i].x - player.x)**2 + (atoms[i].y - player.y)**2);
                 if (d < player.radius + atoms[i].radius) {
                     player.stats[atoms[i].type]++;
                     
+                    // Prehranie špecifického čistého tónu prvku (ASMR tóny)
+                    playSynth(atoms[i].freq, 'sine', 0.08, 0.12);
+
                     if (atoms[i].type === 'N') {
-                        player.turboTimer = 150; // 2.5 sekundy turba
-                        addFloatingText(atoms[i].x, atoms[i].y, "TURBO BOOST", "#bf55ec");
+                        player.turboTimer = 160;
+                        addFloatingText(atoms[i].x, atoms[i].y, "DUSÍKOVÝ TURBO-POHON", "#bf55ec");
                     } else {
                         score += 10;
                         addFloatingText(atoms[i].x, atoms[i].y, `+1 ${atoms[i].type}`, atoms[i].color);
                     }
                     
-                    if(player.radius < 35) player.radius += 0.3;
+                    if(player.radius < 40) player.radius += 0.25;
                     atoms.splice(i, 1); updateHUD(); spawnAtom();
                 }
             }
 
-            // Kolízie: Hráč + Nepriatelia
+            // Kolízie: Paraziti / Predátori
             enemies.forEach((enemy, idx) => {
                 let edx = player.x - enemy.x; let edy = player.y - enemy.y;
                 let edist = Math.sqrt(edx*edx + edy*edy);
@@ -370,25 +445,30 @@
 
                 if (edist < player.radius + enemy.radius) {
                     if (player.shield) { 
-                        enemies.splice(idx, 1); score += 50;
-                        addFloatingText(enemy.x, enemy.y, "+50 SHIELD EXPLOSION", "#00ffff");
+                        enemies.splice(idx, 1); score += 40;
+                        playSynth(300, 'sine', 0.25, 0.2, 100);
+                        addFloatingText(enemy.x, enemy.y, "ŠTÍTOVÁ LIQUIDÁCIA", "#00ffff");
                         spawnEnemy(); 
                     }
                     else if (player.hasSpikes) {
-                        enemies.splice(idx, 1); score += 30;
-                        player.radius = Math.max(16, player.radius - 1.5);
-                        addFloatingText(enemy.x, enemy.y, "+30 KORISŤ ELIMINOVANÁ", "#ff3366");
+                        enemies.splice(idx, 1); score += 25;
+                        player.radius = Math.max(15, player.radius - 1);
+                        playSynth(200, 'triangle', 0.15, 0.15);
+                        addFloatingText(enemy.x, enemy.y, "ÚTOČNÍK ODRAZENÝ OSTŇAMI", "#ff3366");
                         spawnEnemy();
                     } else {
                         player.health -= 1; if (player.health < 0) player.health = 0; updateHUD();
-                        if (player.health <= 0) aiText.innerText = "KRÍZA: DNA kolabovala pod náporom parazitov. Obnov pre nový pokus.";
+                        playSynth(90, 'sawtooth', 0.05, 0.12);
+                        if (player.health <= 0) {
+                            playSynth(50, 'sawtooth', 0.8, 0.3);
+                            aiText.innerText = "MUTÁCIA ZLYHALA: Organické jadro bolo rozložené parazitmi. Obnov stránku pre reštart evolúcie.";
+                        }
                     }
                 }
             });
 
-            // Časovač pre inteligentného radcu (každých 45 snímkov)
             counselorCooldown++;
-            if(counselorCooldown % 45 === 0) updateAICounselor();
+            if(counselorCooldown % 40 === 0) updateAICounselor();
         }
 
         // Častice
@@ -397,20 +477,28 @@
             particles[i].alpha -= particles[i].decay; if(particles[i].alpha <= 0) particles.splice(i, 1);
         }
 
-        // Lietajúce texty
+        // Texty
         for(let i = floatingTexts.length - 1; i >= 0; i--) {
             floatingTexts[i].y += floatingTexts[i].vy; floatingTexts[i].alpha -= 0.02;
             if(floatingTexts[i].alpha <= 0) floatingTexts.splice(i, 1);
         }
     }
 
-    // --- KRESLENIE ---
+    // --- VIZUÁLNE VYRESLENIE (KRESLENIE) ---
     function draw() {
         if (gameState === 'MICROSCOPE') {
-            ctx.fillStyle = planetPalette.bg + '40'; // organický pohybový rozostup
+            ctx.fillStyle = planetPalette.bg + '35'; // Organický Motion-Blur efekt hry
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         } else {
-            ctx.fillStyle = '#010206'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#02040a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Kreslenie planktónu na pozadí
+        if(gameState === 'MICROSCOPE') {
+            backgroundPlankton.forEach(p => {
+                ctx.fillStyle = 'rgba(255,255,255,0.06)';
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+            });
         }
 
         if (gameState !== 'MICROSCOPE') {
@@ -422,18 +510,18 @@
 
         if (gameState === 'ASTEROID') {
             ctx.beginPath(); ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#10121a'; ctx.fill();
+            ctx.fillStyle = '#0b0d14'; ctx.fill();
             ctx.beginPath(); ctx.arc(asteroid.x, asteroid.y, asteroid.radius, 0, Math.PI*2);
-            ctx.fillStyle = '#ff6633'; ctx.fill();
+            ctx.fillStyle = '#ff5522'; ctx.fill();
         }
 
         if (gameState === 'IMPACT' || gameState === 'STABLE' || gameState === 'ZOOM') {
             ctx.save();
-            let atmosGlow = ctx.createRadialGradient(planet.x, planet.y, planet.radius * 0.8, planet.x, planet.y, planet.radius * 1.3);
-            atmosGlow.addColorStop(0, planetPalette.core); atmosGlow.addColorStop(0.5, planetPalette.atm); atmosGlow.addColorStop(1, 'transparent');
-            ctx.fillStyle = atmosGlow; ctx.beginPath(); ctx.arc(planet.x, planet.y, planet.radius * 1.3, 0, Math.PI * 2); ctx.fill();
+            let atmosGlow = ctx.createRadialGradient(planet.x, planet.y, planet.radius * 0.8, planet.x, planet.y, planet.radius * 1.35);
+            atmosGlow.addColorStop(0, planetPalette.core); atmosGlow.addColorStop(0.6, planetPalette.atm); atmosGlow.addColorStop(1, 'transparent');
+            ctx.fillStyle = atmosGlow; ctx.beginPath(); ctx.arc(planet.x, planet.y, planet.radius * 1.35, 0, Math.PI * 2); ctx.fill();
 
-            let planetGrad = ctx.createRadialGradient(planet.x - planet.radius*0.2, planet.y - planet.radius*0.2, planet.radius*0.1, planet.x, planet.y, planet.radius);
+            let planetGrad = ctx.createRadialGradient(planet.x - planet.radius*0.15, planet.y - planet.radius*0.15, planet.radius*0.05, planet.x, planet.y, planet.radius);
             planetGrad.addColorStop(0, '#fff'); planetGrad.addColorStop(0.3, planetPalette.core); planetGrad.addColorStop(0.8, planetPalette.bg); planetGrad.addColorStop(1, '#000');
             ctx.beginPath(); ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2); ctx.fillStyle = planetGrad; ctx.fill();
             ctx.restore();
@@ -445,67 +533,75 @@
         });
 
         if (gameState === 'MICROSCOPE' && player.health > 0) {
-            // Atómy (pulzujúce svetlo)
+            // Atómy prvkov
             atoms.forEach(atom => {
-                atom.pulse += 0.05; let r = atom.radius + Math.sin(atom.pulse) * 1.1;
+                atom.pulse += 0.04; let r = atom.radius + Math.sin(atom.pulse) * 1.2;
                 ctx.save(); ctx.globalCompositeOperation = 'screen';
-                let grad = ctx.createRadialGradient(atom.x, atom.y, 0, atom.x, atom.y, r * 2.5);
+                let grad = ctx.createRadialGradient(atom.x, atom.y, 0, atom.x, atom.y, r * 2.3);
                 grad.addColorStop(0, atom.color); grad.addColorStop(1, 'transparent');
-                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(atom.x, atom.y, r * 2.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(atom.x, atom.y, r * 2.3, 0, Math.PI * 2); ctx.fill();
                 ctx.restore();
             });
 
             // Predátori
             enemies.forEach(enemy => {
-                enemy.pulse += 0.06; let r = enemy.radius + Math.sin(enemy.pulse) * 1.2;
+                enemy.pulse += 0.05; let r = enemy.radius + Math.sin(enemy.pulse) * 1.1;
                 ctx.save();
-                let grad = ctx.createRadialGradient(enemy.x, enemy.y, r * 0.2, enemy.x, enemy.y, r * 1.3);
-                grad.addColorStop(0, '#2b0000'); grad.addColorStop(0.7, '#ff3333'); grad.addColorStop(1, 'transparent');
-                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(enemy.x, enemy.y, r * 1.3, 0, Math.PI * 2); ctx.fill();
+                let grad = ctx.createRadialGradient(enemy.x, enemy.y, r * 0.1, enemy.x, enemy.y, r * 1.25);
+                grad.addColorStop(0, '#200000'); grad.addColorStop(0.65, '#ff2222'); grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(enemy.x, enemy.y, r * 1.25, 0, Math.PI * 2); ctx.fill();
                 ctx.restore();
             });
 
-            // --- MNOHOBUNKOVÉ TELO (ZOBRAZENIE SEGMENTOV FÁZY 3) ---
-            if (player.evolutionLevel === 2) {
-                // Stredný segment (Telo)
-                if (player.history.length > 9) {
-                    let s1 = player.history[Math.max(0, player.history.length - 9)];
-                    ctx.beginPath(); ctx.arc(s1.x, s1.y, player.radius * 0.8, 0, Math.PI * 2);
-                    ctx.fillStyle = planetPalette.slime + 'b5'; ctx.fill();
+            // KRESLENIE EVOLUČNÝCH SEGMENTOV (FÁZA 3 & 4)
+            if (player.evolutionLevel >= 2) {
+                if (player.history.length > 8) {
+                    let s1 = player.history[Math.max(0, player.history.length - 8)];
+                    ctx.beginPath(); ctx.arc(s1.x, s1.y, player.radius * 0.78, 0, Math.PI * 2);
+                    ctx.fillStyle = (player.evolutionLevel >= 3 ? rarityStyle.color : planetPalette.slime) + 'b0'; ctx.fill();
                 }
-                // Zadný segment (Chvostík)
-                if (player.history.length > 18) {
-                    let s2 = player.history[Math.max(0, player.history.length - 18)];
+                if (player.history.length > 17) {
+                    let s2 = player.history[Math.max(0, player.history.length - 17)];
                     ctx.beginPath(); ctx.arc(s2.x, s2.y, player.radius * 0.55, 0, Math.PI * 2);
-                    ctx.fillStyle = planetPalette.slime + '70'; ctx.fill();
+                    ctx.fillStyle = (player.evolutionLevel >= 3 ? rarityStyle.color : planetPalette.slime) + '65'; ctx.fill();
                 }
             }
 
-            // Hlavná Bunka (Hráč)
+            // FÁZA 4 VIZUÁL: Orbitálne rotujúce častice pre Vzácne druhy
             player.pulsePhase += 0.04;
+            if (player.evolutionLevel >= 3 && rarityStyle.orbiters > 0) {
+                for(let i=0; i<rarityStyle.orbiters; i++) {
+                    let orbitAngle = player.pulsePhase * 1.5 + (i * (Math.PI * 2 / rarityStyle.orbiters));
+                    let ox = player.x + Math.cos(orbitAngle) * (player.radius + 14);
+                    let oy = player.y + Math.sin(orbitAngle) * (player.radius + 14);
+                    ctx.fillStyle = rarityStyle.color;
+                    ctx.beginPath(); ctx.arc(ox, oy, 3, 0, Math.PI*2); ctx.fill();
+                }
+            }
+
+            // Hlavná Bunka
             ctx.save();
             player.cores.forEach(core => {
-                core.cx += (player.x + core.ox - (player.vx * 1.2) - core.cx) * 0.14;
-                core.cy += (player.y + core.oy - (player.vy * 1.2) - core.cy) * 0.14;
+                core.cx += (player.x + core.ox - (player.vx * 1.1) - core.cx) * 0.15;
+                core.cy += (player.y + core.oy - (player.vy * 1.1) - core.cy) * 0.15;
             });
 
-            // Kreslenie ostňov
             if (player.hasSpikes) {
                 ctx.beginPath();
                 for (let i = 0; i < 14; i++) {
-                    let angle = (i / 14) * Math.PI * 2 + player.pulsePhase * 0.08;
-                    let spikeLen = player.radius + 7 + Math.sin(player.pulsePhase * 2.5 + i) * 2;
+                    let angle = (i / 14) * Math.PI * 2 + player.pulsePhase * 0.05;
+                    let spikeLen = player.radius + 6 + Math.sin(player.pulsePhase * 2 + i) * 1.8;
                     ctx.lineTo(player.x + Math.cos(angle) * spikeLen, player.y + Math.sin(angle) * spikeLen);
                 }
-                ctx.closePath(); ctx.strokeStyle = 'rgba(255, 60, 100, 0.6)'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.closePath(); ctx.strokeStyle = 'rgba(255, 50, 90, 0.55)'; ctx.lineWidth = 2; ctx.stroke();
             }
 
-            // Kreslenie zvlneného obvodu hlavnej bunky
+            // Zvlnenie membrány améby
             ctx.beginPath();
             const points = 16;
             for (let i = 0; i < points; i++) {
                 let angle = (i / points) * Math.PI * 2;
-                let wave = Math.sin(player.pulsePhase * 1.8 + i * 1.2) * 2.2;
+                let wave = Math.sin(player.pulsePhase * 1.5 + i * 1.3) * 2;
                 let r = player.radius + wave;
                 let px = player.x + Math.cos(angle) * r; let py = player.y + Math.sin(angle) * r;
                 if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
@@ -513,18 +609,20 @@
             ctx.closePath();
 
             let playerGrad = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, player.radius + 4);
-            playerGrad.addColorStop(0, '#ffffff'); playerGrad.addColorStop(0.5, planetPalette.slime); playerGrad.addColorStop(1, 'transparent');
+            playerGrad.addColorStop(0, '#ffffff'); 
+            playerGrad.addColorStop(0.5, player.evolutionLevel >= 3 ? rarityStyle.color : planetPalette.slime); 
+            playerGrad.addColorStop(1, 'transparent');
             ctx.fillStyle = playerGrad; ctx.fill();
 
             player.cores.forEach(core => {
                 ctx.beginPath(); ctx.arc(core.cx, core.cy, core.r, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.25)'; ctx.fill();
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'; ctx.fill();
             });
             ctx.restore();
 
             if (player.shield) {
-                ctx.beginPath(); ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI * 2);
-                ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.beginPath(); ctx.arc(player.x, player.y, player.radius + 9, 0, Math.PI * 2);
+                ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2.5; ctx.stroke();
             }
         }
 
