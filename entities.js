@@ -1,12 +1,7 @@
 window.Entities = {
-    orbs: [], 
-    traps: [], 
-    maxOrbs: 50,
-    maxTraps: 5,
-    biomassCount: 0,
+    orbs: [], traps: [], maxOrbs: 40, maxTraps: 5, biomassCount: 0,
 
     init() {
-        // Inicializácia všetkého
         while (this.orbs.length < this.maxOrbs) this.spawnOrb(0, 0);
         for (let i = 0; i < this.maxTraps; i++) this.spawnTrap();
     },
@@ -17,11 +12,11 @@ window.Entities = {
         const oX = aroundX + Math.cos(angle) * radius;
         const oY = aroundY + Math.sin(angle) * radius;
 
-        let geometry = new THREE.DodecahedronGeometry(0.15);
+        let geometry = new THREE.DodecahedronGeometry(0.2); // Zväčšené
         let material = new THREE.MeshStandardMaterial({ 
             color: 0x22c55e, 
             emissive: 0x15803d, 
-            emissiveIntensity: 2 
+            emissiveIntensity: 3 // Silnejší Bloom
         });
         
         const orb = new THREE.Mesh(geometry, material);
@@ -35,14 +30,10 @@ window.Entities = {
         const material = new THREE.MeshPhongMaterial({ 
             color: 0x4c0519, 
             emissive: 0x881337, 
-            emissiveIntensity: 2, // Pre Bloom
-            shininess: 100,
-            transparent: true,
-            opacity: 0.8
+            emissiveIntensity: 2 
         });
         const trap = new THREE.Mesh(geometry, material);
         trap.position.set((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50, 0);
-        trap.userData = { damage: 0.5 };
         scene.add(trap);
         this.traps.push(trap);
     },
@@ -61,25 +52,32 @@ window.Entities = {
             }
         }
 
-        // 2. Pasce - fyzika a pulzovanie
+        // 2. Pasce
         for (let trap of this.traps) {
             trap.rotation.z += 0.01;
             trap.material.emissiveIntensity = 1 + Math.sin(Date.now() * 0.005) * 0.5;
             
-            const dist = window.Player.mesh.position.distanceTo(trap.position);
-            if (dist < 10) {
-                const force = (10 - dist) * 0.001;
+            if (window.Player.mesh.position.distanceTo(trap.position) < 10) {
+                const force = (10 - window.Player.mesh.position.distanceTo(trap.position)) * 0.001;
                 window.Player.velocityX += (trap.position.x - window.Player.posX) * force;
                 window.Player.velocityY += (trap.position.y - window.Player.posY) * force;
             }
         }
 
-        // 3. Udržiavanie limitov
+        // 3. Dopĺňanie potravy
         while (this.orbs.length < this.maxOrbs) this.spawnOrb(window.Player.posX, window.Player.posY);
     },
 
     updateUI() {
         const barFill = document.getElementById("bar-fill");
+        const evoText = document.getElementById("evolution-text");
+        
         if (barFill) barFill.style.width = Math.min(this.biomassCount * 2, 100) + "%";
+        
+        if (evoText) {
+            if (this.biomassCount >= 10 && this.biomassCount < 25) evoText.innerText = "Bakteriálna kolónia";
+            else if (this.biomassCount >= 25 && this.biomassCount < 50) evoText.innerText = "Multibunkový organizmus";
+            else if (this.biomassCount >= 50) evoText.innerText = "Predátor mikrosveta";
+        }
     }
 };
