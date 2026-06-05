@@ -34,7 +34,6 @@ window.Player = {
 
         this.createCellLabel();
 
-        // Ovládanie pre iPhone
         window.addEventListener("touchmove", (e) => {
             if (e.cancelable) e.preventDefault();
             this.calculateDirection(e.touches[0].clientX, e.touches[0].clientY);
@@ -50,7 +49,6 @@ window.Player = {
             this.velocityY = 0;
         });
 
-        // Ovládanie pre PC
         window.addEventListener("mousemove", (e) => {
             if (e.buttons === 1) this.calculateDirection(e.clientX, e.clientY);
         });
@@ -66,17 +64,25 @@ window.Player = {
 
         const label = document.createElement("div");
         label.id = "cell-label";
+        
+        // 🎨 VIZUÁLNY UPGRADE TEXTU (Glassmorphism)
         label.style.position = "absolute";
-        label.style.color = "#38bdf8";
-        label.style.fontFamily = "monospace";
+        label.style.color = "#ffffff";
+        label.style.fontFamily = "'Courier New', monospace";
         label.style.fontSize = "12px";
         label.style.fontWeight = "bold";
-        label.style.textShadow = "0 0 8px #0ea5e9";
+        label.style.background = "rgba(15, 23, 42, 0.6)"; // Tmavé polopriehľadné pozadie
+        label.style.backdropFilter = "blur(4px)"; // Rozostrenie pozadia pod textom (ako iOS)
+        label.style.border = "1px solid rgba(56, 189, 248, 0.4)"; // Jemný svietiaci okraj
+        label.style.padding = "4px 10px";
+        label.style.borderRadius = "12px";
+        label.style.boxShadow = "0 4px 12px rgba(0,0,0,0.5)";
         label.style.pointerEvents = "none";
         label.style.textAlign = "center";
         label.style.zIndex = "99999";
         
-        label.innerHTML = `<div id="cell-main-name">${this.dna.name}</div><div id="cell-sub-title" style="font-size:8px; color:#64748b; font-style:italic;">${this.dna.title}</div>`;
+        label.innerHTML = `<div id="cell-main-name" style="color: #38bdf8; text-shadow: 0 0 5px #0ea5e9;">${this.dna.name}</div>
+                           <div id="cell-sub-title" style="font-size:9px; color:#94a3b8; font-style:italic; margin-top: 2px;">${this.dna.title}</div>`;
         
         document.body.appendChild(label);
     },
@@ -99,16 +105,19 @@ window.Player = {
         
         let targetColor = 0x38bdf8; 
         let targetEmissive = 0x0ea5e9;
+        let borderColor = "rgba(56, 189, 248, 0.4)";
 
         if (type === "VELOCIS") {
             this.dna.speedPoints++;
             this.speed += 0.008; 
             targetColor = 0xa855f7; 
             targetEmissive = 0x7e22ce;
+            borderColor = "rgba(168, 85, 247, 0.4)";
         } else if (type === "TOXIC") {
             this.dna.toxicPoints++;
             targetColor = 0xef4444; 
             targetEmissive = 0x991b1b;
+            borderColor = "rgba(239, 68, 68, 0.4)";
         }
 
         if (this.mesh && this.mesh.material) {
@@ -116,25 +125,26 @@ window.Player = {
             this.mesh.material.emissive.setHex(targetEmissive);
         }
 
+        const lbl = document.getElementById("cell-label");
+        const mainName = document.getElementById("cell-main-name");
+        const subTitle = document.getElementById("cell-sub-title");
+
+        if (lbl) lbl.style.border = `1px solid ${borderColor}`;
+
         if (this.dna.speedPoints > this.dna.toxicPoints) {
             this.dna.name = `Xeno-Velocis v${this.dna.level}`;
             this.dna.title = `⚡ Bičíkový synapsor (Gen: ${this.dna.speedPoints})`;
-            const lbl = document.getElementById("cell-label");
-            if (lbl) lbl.style.color = "#a855f7";
+            if (mainName) { mainName.style.color = "#a855f7"; mainName.style.textShadow = "0 0 5px #7e22ce"; }
         } else if (this.dna.toxicPoints > this.dna.speedPoints) {
             this.dna.name = `Bio-Toxiferum Alpha`;
             this.dna.title = `🧪 Kyselinový mutant (Gen: ${this.dna.toxicPoints})`;
-            const lbl = document.getElementById("cell-label");
-            if (lbl) lbl.style.color = "#ef4444";
+            if (mainName) { mainName.style.color = "#ef4444"; mainName.style.textShadow = "0 0 5px #991b1b"; }
         } else {
             this.dna.name = `Chimera Hybridis`;
             this.dna.title = `🧬 Stabilizovaný hybrid (Evo: ${this.dna.level})`;
-            const lbl = document.getElementById("cell-label");
-            if (lbl) lbl.style.color = "#38bdf8";
+            if (mainName) { mainName.style.color = "#38bdf8"; mainName.style.textShadow = "0 0 5px #0ea5e9"; }
         }
 
-        const mainName = document.getElementById("cell-main-name");
-        const subTitle = document.getElementById("cell-sub-title");
         if (mainName) mainName.innerText = this.dna.name;
         if (subTitle) subTitle.innerText = this.dna.title;
     },
@@ -149,7 +159,7 @@ window.Player = {
 
         const label = document.getElementById("cell-label");
         if (label && typeof camera !== 'undefined') {
-            const tempV = new THREE.Vector3(this.posX, this.posY + 1.8, 0);
+            const tempV = new THREE.Vector3(this.posX, this.posY + 2.0, 0); // Text sme dali ešte o kúsok vyššie
             tempV.project(camera);
             
             const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
