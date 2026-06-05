@@ -78,6 +78,23 @@ window.Entities = {
             if (dist < 1.5) {
                 this.biomassCount = Math.max(0, this.biomassCount - 0.1);
                 this.updateUI();
+                // --- ROZŠÍRENIE: ORGANICKÉ POZADIE A ATMOSFÉRA ---
+window.Entities.addAtmosphere = function() {
+    // Vytvoríme svetlo, ktoré dodá hre hĺbku
+    const ambientLight = new THREE.AmbientLight(0x404040, 2);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0x38bdf8, 1, 50);
+    pointLight.position.set(0, 0, 10);
+    scene.add(pointLight);
+
+    // Pridáme "hmlovinu" v pozadí (mikro-častice, ktoré sa nehýbu)
+    const geometry = new THREE.BufferGeometry();
+    const material = new THREE.PointsMaterial({ color: 0x0ea5e9, size: 0.1, transparent: true, opacity: 0.2 });
+    const stars = new THREE.Points(geometry, material);
+    scene.add(stars);
+    console.log("🌌 Atmosféra pridaná: Rozšírenie ekosystému úspešné.");
+};
             }
         }
 
