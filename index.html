@@ -3,19 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>XENO-GENESIS PRO</title>
+    <title>XENO-GENESIS PRO - TEST</title>
     <link rel="stylesheet" href="assets/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
+    <div id="debug-error" style="position:fixed; bottom:10px; left:10px; color:red; font-family:monospace; font-size:12px; z-index:9999; background:rgba(0,0,0,0.8); padding:5px;">Čakám na štart chýb...</div>
+
     <div id="hud">
         <div class="hud-label">BIOMASA</div>
         <div class="bar"><div id="bar-fill"></div></div>
     </div>
 
+    <script>
+        // Ak sa stane akákoľvek chyba v JavaScript súboroch, vypíšeme ju sem
+        window.addEventListener('error', function(e) {
+            document.getElementById('debug-error').innerText = "CHYBA: " + e.message + " v " + e.filename + " na riadku " + e.lineno;
+        });
+        document.getElementById('debug-error').innerText = "Systém sledovania chýb aktívny. Načítavam moduly...";
+    </script>
+
     <script src="world.js"></script>
     <script src="player.js"></script>
     <script src="entities.js"></script>
     <script src="game.js"></script>
+
+    <script>
+        // Ak všetko prebehlo ok, po 2 sekundách nápis zmizne
+        setTimeout(() => {
+            if(document.getElementById('debug-error').innerText.indexOf('CHYBA') === -1) {
+                document.getElementById('debug-error').style.display = 'none';
+            }
+        }, 2000);
+    </script>
 </body>
 </html>
