@@ -1,28 +1,38 @@
-let scene, camera, renderer;
+let scene, camera, renderer, composer;
 
 const game = {
     init() {
-        console.log("⚙️ XENO-GENESIS: Organický engine naštartovaný.");
+        console.log("⚙️ Spúšťam XENO-GENESIS...");
         scene = new THREE.Scene();
-        // Temná, hlboká voda (čierno-modrá hmla)
-        scene.fog = new THREE.FogExp2(0x020617, 0.02);
+        // Jemná hmla, v ktorej sa stratia vzdialené objekty
+        scene.fog = new THREE.FogExp2(0x010409, 0.015);
 
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 0, 15);
 
-        // Zapnutý antialiasing pre dokonale hladké hrany
         renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // Osvetlenie hlbokomorského prostredia
-        scene.add(new THREE.AmbientLight(0x0f172a, 1.5));
+        // BLOOM SETUP (Ponechaný ako príprava, ale renderujeme napriamo pre čistotu Shaderov)
+        composer = new THREE.EffectComposer(renderer);
+        composer.addPass(new THREE.RenderPass(scene, camera));
         
-        const pointLight = new THREE.PointLight(0x38bdf8, 2, 50);
-        pointLight.position.set(0, 5, 10);
+        const bloomPass = new THREE.UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight), 
+            1.5, 0.4, 0.85
+        );
+        composer.addPass(bloomPass);
+
+        // Svetlá
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const pointLight = new THREE.PointLight(0xffffff, 1.2, 50);
+        pointLight.position.set(5, 5, 10);
         scene.add(pointLight);
 
+        // INICIALIZÁCIA VŠETKÝCH MODULOV
+        if (typeof World !== 'undefined') World.init();
         if (typeof Entities !== 'undefined') Entities.init();
         if (typeof Player !== 'undefined') Player.init();
 
@@ -32,13 +42,15 @@ const game = {
     animate() {
         requestAnimationFrame(() => game.animate());
 
+        // AKTUALIZÁCIA VŠETKÝCH MODULOV
+        if (typeof World !== 'undefined' && World.update) World.update(); // <- TOTO OŽIVÍ OCEÁN
         if (typeof Player !== 'undefined') Player.update();
         if (typeof Entities !== 'undefined') Entities.update();
 
-        // Plavný pohyb kamery za bunkou (žiadne trhanie)
+        // Kamera plynulo nasleduje hráča
         if (typeof Player !== 'undefined' && Player.mesh) {
-            camera.position.x += (Player.posX - camera.position.x) * 0.08;
-            camera.position.y += (Player.posY - camera.position.y) * 0.08;
+            camera.position.x += (Player.posX - camera.position.x) * 0.05;
+            camera.position.y += (Player.posY - camera.position.y) * 0.05;
         }
         
         renderer.render(scene, camera); 
@@ -52,4 +64,5 @@ window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
 });
