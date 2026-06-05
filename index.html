@@ -3,74 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Amoeba Evolution 1.1</title>
+    <title>Xeno Evolution 0.2</title>
+
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body { background: #030712; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        #hud { position: absolute; top: env(safe-area-inset-top, 20px); left: 20px; right: 20px; z-index: 10; color: #fff; display: flex; justify-content: space-between; }
-        .label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; }
-        .value { font-size: 18px; font-weight: 300; }
-        #btn-evolve { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 10; padding: 15px 30px; background: #fff; border-radius: 30px; font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; display: none; }
-        #btn-evolve.active { display: block; }
+        #canvas-container { position: absolute; width: 100%; height: 100%; }
+        #hud { position: absolute; top: 20px; left: 20px; right: 20px; z-index: 10; color: white; display: flex; justify-content: space-between; }
+        .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+        .value { font-size: 18px; }
+
     </style>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
+
 <body>
 
 <div id="canvas-container"></div>
+
 <div id="hud">
-    <div><div class="label">Evolúcia</div><div id="txt-stage" class="value">Mikro-Bunka</div></div>
-    <div style="text-align: right;"><div class="label">Biomasa</div><div id="txt-biomass" class="value">0%</div></div>
+    <div>
+        <div class="label">Stav</div>
+        <div class="value">Bunka</div>
+    </div>
+    <div>
+        <div class="label">Veľkosť</div>
+        <div id="size" class="value">1.0</div>
+    </div>
 </div>
-<button id="btn-evolve">Evolvovať</button>
 
 <script>
-    const container = document.getElementById('canvas-container');
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
-    camera.position.z = 8;
+const container = document.getElementById("canvas-container");
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    container.appendChild(renderer.domElement);
+// SCÉNA
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.z = 8;
 
-    // Vizuálne vylepšenie: Materiál s jemným žiarením (Glow efekt)
-    const playerGeo = new THREE.IcosahedronGeometry(1.2, 5);
-    const playerMat = new THREE.MeshPhongMaterial({ 
-        color: 0x0ea5e9, 
-        emissive: 0x0ea5e9, 
-        emissiveIntensity: 0.5,
-        wireframe: false,
-        transparent: true,
-        opacity: 0.8
-    });
-    const player = new THREE.Mesh(playerGeo, playerMat);
-    scene.add(player);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+container.appendChild(renderer.domElement);
 
-    const light = new THREE.PointLight(0xffffff, 1, 100);
-    light.position.set(5, 5, 5);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0x404040));
+// SVETLO
+scene.add(new THREE.AmbientLight(0x404040));
+const light = new THREE.PointLight(0xffffff, 1);
+light.position.set(5,5,5);
+scene.add(light);
 
-    let targetX = 0, targetY = 0;
-    window.addEventListener('touchmove', (e) => {
-        targetX = (e.touches[0].clientX / window.innerWidth) * 4 - 2;
-        targetY = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
-    });
+// HRÁČ
+const player = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1, 5),
+    new THREE.MeshStandardMaterial({
+        color: 0x0ea5e9,
+        emissive: 0x0ea5e9,
+        emissiveIntensity: 0.4
+    })
+);
+scene.add(player);
 
-    function animate() {
-        requestAnimationFrame(animate);
-        player.position.x += (targetX - player.position.x) * 0.05;
-        player.position.y += (targetY - player.position.y) * 0.05;
-        
-        // Organické dýchanie bunky
-        player.scale.setScalar(1 + Math.sin(Date.now() * 0.005) * 0.05);
-        
-        renderer.render(scene, camera);
+// POHYB
+let targetX = 0;
+let targetY = 0;
+
+window.addEventListener("touchmove", (e) => {
+    targetX = (e.touches[0].clientX / window.innerWidth) * 6 - 3;
+    targetY = -(e.touches[0].clientY / window.innerHeight) * 4 + 2;
+});
+
+// ORBS (potrava)
+const orbs = [];
+
+function spawnOrb() {
+    const orb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.12, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0x22c55e })
+    );
+
+    orb.position.x = (Math.random() - 0.5) * 25;
+    orb.position.y = (Math.random() - 0.5) * 25;
+    orb.position.z = (Math.random() - 0.5) * 10;
+
+    scene.add(orb);
+    orbs.push(orb);
+}
+
+for (let i = 0; i < 30; i++) spawnOrb();
+
+// HUD
+const sizeText = document.getElementById("size");
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    // pohyb
+    player.position.x += (targetX - player.position.x) * 0.05;
+    player.position.y += (targetY - player.position.y) * 0.05;
+
+    // dýchanie
+    player.scale.setScalar(1 + Math.sin(Date.now()*0.005)*0.05);
+
+    // ZBER ORBOV
+    for (let i = orbs.length - 1; i >= 0; i--) {
+        const o = orbs[i];
+        const dist = player.position.distanceTo(o.position);
+
+        if (dist < 1.2) {
+            scene.remove(o);
+            orbs.splice(i, 1);
+
+            // RAST
+            player.scale.multiplyScalar(1.03);
+        }
     }
-    animate();
+
+    sizeText.innerText = player.scale.x.toFixed(2);
+
+    renderer.render(scene, camera);
+}
+
+animate();
+
+// resize fix
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 </script>
+
 </body>
 </html>
