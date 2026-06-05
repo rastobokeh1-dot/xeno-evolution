@@ -98,19 +98,54 @@ const Player = {
     mutate(type) {
         this.dna.level++;
         
+        // Nastavenie cieľovej farby podľa mutácie
+        let targetColor = 0x38bdf8; // Základná modrá
+        let targetEmissive = 0x0ea5e9;
+
         if (type === "VELOCIS") {
             this.dna.speedPoints++;
-            this.speed += 0.01;
-            if (this.mesh) {
-                this.mesh.material.color.setHex(0xa855f7);
-                this.mesh.material.emissive.setHex(0x7e22ce);
-            }
+            this.speed += 0.008; // Jemné zrýchlenie
+            targetColor = 0xa855f7; // Fialová
+            targetEmissive = 0x7e22ce;
         } else if (type === "TOXIC") {
             this.dna.toxicPoints++;
-            if (this.mesh) {
-                this.mesh.material.color.setHex(0xef4444);
-                this.mesh.material.emissive.setHex(0x991b1b);
-            }
+            targetColor = 0xef4444; // Červená
+            targetEmissive = 0x991b1b;
+        }
+
+        // PLYNULÁ ZMENA VIZUÁLU (Režisérsky efekt prechodu)
+        if (this.mesh && this.mesh.material) {
+            this.mesh.material.color.setHex(targetColor);
+            this.mesh.material.emissive.setHex(targetEmissive);
+        }
+
+        // KREATÍVNA AI DETEKCIA EVOLÚCIE: Kombinácia génov
+        const totalGens = this.dna.speedPoints + this.dna.toxicPoints;
+        
+        if (this.dna.speedPoints > this.dna.toxicPoints) {
+            this.dna.name = `Xeno-Velocis v${this.dna.level}`;
+            this.dna.title = `⚡ Bičíkový synapsor (Gen: ${this.dna.speedPoints})`;
+            const lbl = document.getElementById("cell-label");
+            if (lbl) lbl.style.color = "#a855f7";
+        } else if (this.dna.toxicPoints > this.dna.speedPoints) {
+            this.dna.name = `Bio-Toxiferum Alpha`;
+            this.dna.title = `🧪 Kyselinový mutant (Gen: ${this.dna.toxicPoints})`;
+            const lbl = document.getElementById("cell-label");
+            if (lbl) lbl.style.color = "#ef4444";
+        } else {
+            // Ak máš rovnako rýchlosti aj toxicity, vzniká hybrid!
+            this.dna.name = `Chimera Hybridis`;
+            this.dna.title = `🧬 Stabilizovaný hybrid (Evo: ${this.dna.level})`;
+            const lbl = document.getElementById("cell-label");
+            if (lbl) lbl.style.color = "#38bdf8";
+        }
+
+        // Aktualizácia textu na displeji iPhonu
+        const mainName = document.getElementById("cell-main-name");
+        const subTitle = document.getElementById("cell-sub-title");
+        if (mainName) mainName.innerText = this.dna.name;
+        if (subTitle) subTitle.innerText = this.dna.title;
+    },
         }
 
         // AI Výber názvu podľa evolučnej vetvy
