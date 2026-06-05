@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xeno Evolution SAFE v1</title>
+<title>Xeno Evolution v2</title>
 
 <style>
-body { margin:0; overflow:hidden; background:#020617; }
+body { margin:0; overflow:hidden; background:#00010a; }
 #ui {
     position:fixed;
     top:15px;
@@ -18,7 +18,7 @@ body { margin:0; overflow:hidden; background:#020617; }
 .bar {
     width:200px;
     height:10px;
-    background:#1f2937;
+    background:#111827;
     border-radius:10px;
     overflow:hidden;
     margin-top:6px;
@@ -42,89 +42,157 @@ body { margin:0; overflow:hidden; background:#020617; }
 
 <script>
 
+// ======================
 // SCÉNA
+// ======================
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x020617);
 
+// hviezdy (vizuál)
+for(let i=0;i<200;i++){
+    const star = new THREE.Mesh(
+        new THREE.SphereGeometry(0.02,4,4),
+        new THREE.MeshBasicMaterial({ color:0xffffff })
+    );
+    star.position.set(
+        (Math.random()-0.5)*50,
+        (Math.random()-0.5)*30,
+        (Math.random()-0.5)*20
+    );
+    scene.add(star);
+}
+
+// kamera
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.z = 10;
+camera.position.z = 12;
 
+// renderer
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// HRÁČ (jednoduchý materiál = stabilita)
+// ======================
+// PLAYER
+// ======================
 const player = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 16, 16),
+    new THREE.SphereGeometry(0.8, 16, 16),
     new THREE.MeshBasicMaterial({ color:0x38bdf8 })
 );
 scene.add(player);
 
-// INPUT
-let target = {x:0,y:0};
+// ======================
+// INPUT (JOYSTICK STYLE)
+// ======================
+let inputX = 0;
+let inputY = 0;
+
+function setInput(clientX, clientY){
+    inputX = (clientX / window.innerWidth) * 2 - 1;
+    inputY = -(clientY / window.innerHeight) * 2 + 1;
+}
 
 window.addEventListener("touchmove",(e)=>{
-    const t = e.touches[0];
-    target.x = (t.clientX/window.innerWidth)*8-4;
-    target.y = -(t.clientY/window.innerHeight)*5+2;
+    setInput(e.touches[0].clientX, e.touches[0].clientY);
 });
 
 window.addEventListener("mousemove",(e)=>{
-    target.x = (e.clientX/window.innerWidth)*8-4;
-    target.y = -(e.clientY/window.innerHeight)*5+2;
+    setInput(e.clientX, e.clientY);
 });
 
+// ======================
 // ORBS
+// ======================
 const orbs = [];
 
 function spawnOrb(){
     const orb = new THREE.Mesh(
-        new THREE.SphereGeometry(0.2,8,8),
+        new THREE.SphereGeometry(0.15,10,10),
         new THREE.MeshBasicMaterial({ color:0x22c55e })
     );
 
-    orb.position.x = (Math.random()-0.5)*20;
-    orb.position.y = (Math.random()-0.5)*15;
-    orb.position.z = 0;
+    orb.position.set(
+        (Math.random()-0.5)*25,
+        (Math.random()-0.5)*18,
+        0
+    );
 
     scene.add(orb);
     orbs.push(orb);
 }
 
-for(let i=0;i<40;i++) spawnOrb();
+for(let i=0;i<50;i++) spawnOrb();
 
-// GAME
+// ======================
+// GAME STATE
+// ======================
 let biomass = 0;
 
 const bio = document.getElementById("bio");
 const bar = document.getElementById("bar");
 
+// ======================
+// CAMERA FOLLOW (smooth)
+// ======================
+const camTarget = new THREE.Vector3();
+
+// ======================
+// LOOP
+// ======================
 function animate(){
     requestAnimationFrame(animate);
 
-    // pohyb
-    player.position.x += (target.x - player.position.x) * 0.1;
-    player.position.y += (target.y - player.position.y) * 0.1;
+    // ======================
+    // PLAYER MOVEMENT (FIXED)
+    // ======================
+    const speed = 0.15;
 
-    // zber (2D PRESNE)
+    player.position.x += inputX * speed;
+    player.position.y += inputY * speed;
+
+    // clamp (neujde mimo svet)
+    player.position.x = Math.max(-10, Math.min(10, player.position.x));
+    player.position.y = Math.max(-6, Math.min(6, player.position.y));
+
+    // ======================
+    // CAMERA SMOOTH FOLLOW
+    // ======================
+    camTarget.x = player.position.x * 0.6;
+    camTarget.y = player.position.y * 0.6;
+
+    camera.position.x += (camTarget.x - camera.position.x) * 0.05;
+    camera.position.y += (camTarget.y - camera.position.y) * 0.05;
+
+    camera.lookAt(player.position);
+
+    // ======================
+    // ORB COLLISION (STABLE)
+    // ======================
     for(let i=orbs.length-1;i>=0;i--){
         const o = orbs[i];
 
         const dx = player.position.x - o.position.x;
         const dy = player.position.y - o.position.y;
+
         const dist = Math.sqrt(dx*dx + dy*dy);
 
-        if(dist < 1){
+        // magnet
+        if(dist < 3){
+            o.position.x += dx * 0.02;
+            o.position.y += dy * 0.02;
+        }
+
+        // pickup
+        if(dist < 0.7){
             scene.remove(o);
             orbs.splice(i,1);
 
             biomass++;
-            player.scale.multiplyScalar(1.03);
+            player.scale.multiplyScalar(1.02);
 
             spawnOrb();
         }
     }
 
+    // UI
     bio.innerText = biomass;
     bar.style.width = Math.min(biomass*2,100) + "%";
 
@@ -133,6 +201,7 @@ function animate(){
 
 animate();
 
+// resize
 window.addEventListener("resize",()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
