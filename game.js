@@ -3,46 +3,48 @@ console.log("⚙️ Modul GAME: Hlavný mozog spustený.");
 // Globálne premenné prístupné pre celú hru
 let scene, camera, renderer;
 
-const Game = {
+const game = {
     init() {
+        console.log("⚙️ Inicializujem engine...");
+        
         // 1. Vytvorenie 3D sveta
         scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x010409, 0.015); // Hmlovina pre hĺbku ostrosti
+        scene.fog = new THREE.FogExp2(0x010409, 0.015); // Hmlovina pre hĺbku
 
-        // 2. Nastavenie kamery (pohľad zhora/mierny uhol)
+        // 2. Nastavenie kamery
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 0, 15);
 
-        // 3. Inicializácia profesionálneho vykresľovača
+        // 3. Inicializácia vykresľovača pre iPhone
         renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Optimalizácia pre iPhony
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // 4. Globálne ambientné svetlo (aby sme videli obrysy)
+        // 4. Svetlá
         const ambientLight = new THREE.AmbientLight(0x0ea5e9, 0.4);
         scene.add(ambientLight);
 
-        // 5. Bodové svetlo (bude neskôr sledovať bunku)
         const pointLight = new THREE.PointLight(0xffffff, 1.2, 50);
         pointLight.position.set(5, 5, 10);
         scene.add(pointLight);
 
-        // Spustenie sub-modulov
-        World.init();
-        Player.init();
-        Entities.init();
+        // Spustenie sub-modulov (ak existujú)
+        if (typeof World !== 'undefined' && World.init) World.init();
+        if (typeof Player !== 'undefined' && Player.init) Player.init();
+        if (typeof Entities !== 'undefined' && Entities.init) Entities.init();
 
-        // Štart nekonečnej renderovacej slučky
+        // Štart slučky
         this.animate();
     },
 
-   animate() {
-        requestAnimationFrame(() => Game.animate());
+    animate() {
+        // Tu sme opravili to nešťastné veľké G na malé g!
+        requestAnimationFrame(() => game.animate());
 
-        // AKTUALIZÁCIA MODULOV
+        // Aktualizácia hráča každú snímku
         if (typeof Player !== 'undefined' && Player.update) {
-            Player.update(); // Hráč sa pohne a dýchne
+            Player.update();
         }
         
         // Vykreslenie scény
@@ -50,10 +52,10 @@ const Game = {
     }
 };
 
-// Režisérsky povel na štart po načítaní stránky
+// Spustenie hry po načítaní stránky
 window.addEventListener("load", () => {
-    Game.init();
-    console.log("🚀 XENO-GENESIS úspešne naštartovaná na engine WebGL!");
+    game.init();
+    console.log("🚀 XENO-GENESIS úspešne naštartovaná!");
 });
 
 // Responzivita pri otočení iPhonu
