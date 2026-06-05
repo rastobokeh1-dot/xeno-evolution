@@ -141,7 +141,7 @@ const Player = {
         if (subTitle) subTitle.innerText = this.dna.title;
     },
 
-    update() {
+   update() {
         if (!this.mesh) return;
 
         this.posX += this.velocityX;
@@ -149,16 +149,27 @@ const Player = {
 
         this.mesh.position.set(this.posX, this.posY, 0);
 
+        // NEPRIESTRELNÉ POZÍCIOVANIE PRE iPHONE
         const label = document.getElementById("cell-label");
-        if (label && camera) {
-            const tempV = new THREE.Vector3(this.posX, this.posY + 1.6, 0);
+        if (label && typeof camera !== 'undefined') {
+            // Posunieme text trošku vyššie nad bunku (Y + 1.8)
+            const tempV = new THREE.Vector3(this.posX, this.posY + 1.8, 0);
             tempV.project(camera);
             
-            const x = (tempV.x * .5 + .5) * window.innerWidth;
-            const y = (tempV.y * -.5 + .5) * window.innerHeight;
+            // Prepočet 3D sveta na presné pixely tvojho displeja
+            const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
             
-            label.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
+            // Používame natívne CSS pixely (funguje 100% všade)
+            label.style.left = Math.round(x) + "px";
+            label.style.top = Math.round(y) + "px";
+            label.style.transform = "translate(-50%, -50%)";
         }
+
+        const time = Date.now() * 0.004;
+        this.mesh.scale.setScalar(1 + Math.sin(time) * 0.04);
+        this.mesh.rotation.y += 0.005;
+    }
 
         const time = Date.now() * 0.004;
         this.mesh.scale.setScalar(1 + Math.sin(time) * 0.04);
