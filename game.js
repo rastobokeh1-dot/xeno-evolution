@@ -1,9 +1,8 @@
-console.log("⚙️ Modul GAME: Hlavný mozog spustený.");
-
 let scene, camera, renderer, composer;
 
 const game = {
     init() {
+        console.log("⚙️ Spúšťam XENO-GENESIS...");
         scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x010409, 0.015);
 
@@ -15,7 +14,7 @@ const game = {
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // Bloom Kompozítor - Správne nastavenie
+        // BLOOM SETUP
         composer = new THREE.EffectComposer(renderer);
         composer.addPass(new THREE.RenderPass(scene, camera));
         
@@ -26,15 +25,13 @@ const game = {
         composer.addPass(bloomPass);
 
         // Svetlá
-        const ambientLight = new THREE.AmbientLight(0x0ea5e9, 0.4);
-        scene.add(ambientLight);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
         const pointLight = new THREE.PointLight(0xffffff, 1.2, 50);
         pointLight.position.set(5, 5, 10);
         scene.add(pointLight);
 
-        if (typeof World !== 'undefined' && World.init) World.init();
-        if (typeof Player !== 'undefined' && Player.init) Player.init();
-        if (typeof Entities !== 'undefined' && Entities.init) Entities.init();
+        if (typeof Entities !== 'undefined') Entities.init();
+        if (typeof Player !== 'undefined') Player.init();
 
         this.animate();
     },
@@ -42,25 +39,24 @@ const game = {
     animate() {
         requestAnimationFrame(() => game.animate());
 
-        if (typeof Player !== 'undefined' && Player.update) Player.update();
-        if (typeof Entities !== 'undefined' && Entities.update) Entities.update();
+        if (typeof Player !== 'undefined') Player.update();
+        if (typeof Entities !== 'undefined') Entities.update();
 
         if (typeof Player !== 'undefined' && Player.mesh) {
             camera.position.x += (Player.posX - camera.position.x) * 0.05;
             camera.position.y += (Player.posY - camera.position.y) * 0.05;
         }
         
-        // KĽÚČ: Vždy použi composer namiesto renderer.render
-        composer.render(); 
+        composer.render(); // Bloom render
     }
 };
 
-window.addEventListener("load", () => game.init());
+window.onload = () => game.init();
 
 window.addEventListener("resize", () => {
     if (!camera || !renderer) return;
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    composer.setSize(window.innerWidth, window.innerHeight); // Dôležité pre Bloom
+    composer.setSize(window.innerWidth, window.innerHeight);
 });
