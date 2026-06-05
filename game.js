@@ -1,11 +1,9 @@
 console.log("⚙️ Modul GAME: Hlavný mozog spustený.");
 
-let scene, camera, renderer, composer; // Pridaný composer do premenných
+let scene, camera, renderer, composer;
 
 const game = {
     init() {
-        console.log("⚙️ Inicializujem engine...");
-        
         scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x010409, 0.015);
 
@@ -17,22 +15,19 @@ const game = {
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // --- BLOOM KOMPOZÍTOR ---
+        // Bloom Kompozítor - Správne nastavenie
         composer = new THREE.EffectComposer(renderer);
         composer.addPass(new THREE.RenderPass(scene, camera));
         
         const bloomPass = new THREE.UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight), 
-            1.5, // Sila žiary
-            0.4, // Polomer
-            0.85 // Threshold (od akého jasu začne žiariť)
+            1.5, 0.4, 0.85
         );
         composer.addPass(bloomPass);
-        // ------------------------
 
+        // Svetlá
         const ambientLight = new THREE.AmbientLight(0x0ea5e9, 0.4);
         scene.add(ambientLight);
-
         const pointLight = new THREE.PointLight(0xffffff, 1.2, 50);
         pointLight.position.set(5, 5, 10);
         scene.add(pointLight);
@@ -55,21 +50,17 @@ const game = {
             camera.position.y += (Player.posY - camera.position.y) * 0.05;
         }
         
-        // Vykresľujeme cez composer (ktorý má v sebe zapnutý Bloom)
+        // KĽÚČ: Vždy použi composer namiesto renderer.render
         composer.render(); 
     }
 };
 
-window.addEventListener("load", () => {
-    game.init();
-    console.log("🚀 XENO-GENESIS úspešne naštartovaná!");
-});
+window.addEventListener("load", () => game.init());
 
 window.addEventListener("resize", () => {
     if (!camera || !renderer) return;
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    // Aktualizujeme aj composer
-    if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight); // Dôležité pre Bloom
 });
