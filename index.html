@@ -1,135 +1,183 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Xeno Evolution 0.2</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Xeno Evolution CORE v1</title>
 
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { background: #030712; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-        #canvas-container { position: absolute; width: 100%; height: 100%; }
-        #hud { position: absolute; top: 20px; left: 20px; right: 20px; z-index: 10; color: white; display: flex; justify-content: space-between; }
-        .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
-        .value { font-size: 18px; }
+<style>
+    body { margin:0; overflow:hidden; background:#020617; font-family:system-ui; }
+    #ui {
+        position:fixed;
+        top:20px;
+        left:20px;
+        color:white;
+        z-index:10;
+        font-size:14px;
+    }
+    .bar {
+        width:200px;
+        height:10px;
+        background:#1f2937;
+        border-radius:10px;
+        overflow:hidden;
+        margin-top:5px;
+    }
+    .fill {
+        height:100%;
+        width:0%;
+        background:#22c55e;
+    }
+</style>
 
-    </style>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 
 <body>
 
-<div id="canvas-container"></div>
-
-<div id="hud">
-    <div>
-        <div class="label">Stav</div>
-        <div class="value">Bunka</div>
-    </div>
-    <div>
-        <div class="label">Veľkosť</div>
-        <div id="size" class="value">1.0</div>
-    </div>
+<div id="ui">
+    <div>🧬 Biomasa: <span id="bio">0</span></div>
+    <div class="bar"><div id="bar" class="fill"></div></div>
 </div>
 
 <script>
-const container = document.getElementById("canvas-container");
 
-// SCÉNA
+// ========================
+// ENGINE SETUP
+// ========================
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
-camera.position.z = 8;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const camera = new THREE.PerspectiveCamera(
+    70,
+    window.innerWidth/window.innerHeight,
+    0.1,
+    1000
+);
+camera.position.z = 10;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-container.appendChild(renderer.domElement);
+document.body.appendChild(renderer.domElement);
 
-// SVETLO
-scene.add(new THREE.AmbientLight(0x404040));
+// svetlo
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 const light = new THREE.PointLight(0xffffff, 1);
-light.position.set(5,5,5);
+light.position.set(10,10,10);
 scene.add(light);
 
-// HRÁČ
+// ========================
+// PLAYER (BUNKA)
+// ========================
 const player = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(1, 5),
+    new THREE.IcosahedronGeometry(1, 2),
     new THREE.MeshStandardMaterial({
-        color: 0x0ea5e9,
-        emissive: 0x0ea5e9,
-        emissiveIntensity: 0.4
+        color:0x38bdf8,
+        emissive:0x0ea5e9,
+        emissiveIntensity:0.5
     })
 );
 scene.add(player);
 
-// POHYB
-let targetX = 0;
-let targetY = 0;
+// pohyb
+let target = new THREE.Vector2();
 
-window.addEventListener("touchmove", (e) => {
-    targetX = (e.touches[0].clientX / window.innerWidth) * 6 - 3;
-    targetY = -(e.touches[0].clientY / window.innerHeight) * 4 + 2;
+window.addEventListener("touchmove",(e)=>{
+    target.x = (e.touches[0].clientX/window.innerWidth)*8-4;
+    target.y = -(e.touches[0].clientY/window.innerHeight)*5+2;
 });
 
-// ORBS (potrava)
+// ========================
+// ORBS (ENERGIA)
+// ========================
 const orbs = [];
 
-function spawnOrb() {
+function spawnOrb(){
     const orb = new THREE.Mesh(
-        new THREE.SphereGeometry(0.12, 10, 10),
-        new THREE.MeshBasicMaterial({ color: 0x22c55e })
+        new THREE.SphereGeometry(0.15,10,10),
+        new THREE.MeshBasicMaterial({ color:0x22c55e })
     );
 
-    orb.position.x = (Math.random() - 0.5) * 25;
-    orb.position.y = (Math.random() - 0.5) * 25;
-    orb.position.z = (Math.random() - 0.5) * 10;
+    orb.position.set(
+        (Math.random()-0.5)*30,
+        (Math.random()-0.5)*20,
+        (Math.random()-0.5)*10
+    );
 
     scene.add(orb);
     orbs.push(orb);
 }
 
-for (let i = 0; i < 30; i++) spawnOrb();
+// spawn sveta
+for(let i=0;i<50;i++) spawnOrb();
 
-// HUD
-const sizeText = document.getElementById("size");
+// ========================
+// GAME STATE
+// ========================
+let biomass = 0;
 
-function animate() {
+// UI
+const bioText = document.getElementById("bio");
+const bar = document.getElementById("bar");
+
+// ========================
+// GAME LOOP
+// ========================
+function animate(){
     requestAnimationFrame(animate);
 
-    // pohyb
-    player.position.x += (targetX - player.position.x) * 0.05;
-    player.position.y += (targetY - player.position.y) * 0.05;
+    // pohyb hráča
+    player.position.x += (target.x - player.position.x)*0.05;
+    player.position.y += (target.y - player.position.y)*0.05;
 
-    // dýchanie
-    player.scale.setScalar(1 + Math.sin(Date.now()*0.005)*0.05);
+    // "dýchanie"
+    player.scale.setScalar(1 + Math.sin(Date.now()*0.003)*0.05);
 
-    // ZBER ORBOV
-    for (let i = orbs.length - 1; i >= 0; i--) {
+    // ========================
+    // COLLISION SYSTEM
+    // ========================
+    for(let i=orbs.length-1;i>=0;i--){
         const o = orbs[i];
+
         const dist = player.position.distanceTo(o.position);
 
-        if (dist < 1.2) {
+        if(dist < 1.2){
             scene.remove(o);
-            orbs.splice(i, 1);
+            orbs.splice(i,1);
 
-            // RAST
-            player.scale.multiplyScalar(1.03);
+            biomass += 1;
+
+            // rast bunky
+            player.scale.multiplyScalar(1.02);
         }
     }
 
-    sizeText.innerText = player.scale.x.toFixed(2);
+    // ========================
+    // UI UPDATE
+    // ========================
+    bioText.innerText = biomass;
 
-    renderer.render(scene, camera);
+    let percent = Math.min(biomass*2, 100);
+    bar.style.width = percent + "%";
+
+    // ========================
+    // EVOLUTION HOOK (budúcnosť)
+    // ========================
+    if(biomass > 50){
+        player.material.color.set(0xa78bfa); // evolúcia farby
+    }
+
+    renderer.render(scene,camera);
 }
 
 animate();
 
 // resize fix
-window.addEventListener("resize", () => {
+window.addEventListener("resize",()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(window.innerWidth,window.innerHeight);
 });
+
 </script>
 
 </body>
