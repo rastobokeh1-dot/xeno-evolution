@@ -1,17 +1,19 @@
-console.log("🧫 Modul PLAYER: Načítaný a pripravený.");
+console.log("🧫 Modul PLAYER: Načítaný a pripravený na voľný pohyb.");
 
 const Player = {
     mesh: null,
-    targetX: 0,
-    targetY: 0,
+    // Reálna pozícia v nekonečnom svete
+    posX: 0,
+    posY: 0,
+    // Smer a rýchlosť letu
+    velocityX: 0,
+    velocityY: 0,
+    speed: 0.15, // Maximálna rýchlosť bunky
 
     init() {
         console.log("🧫 Vstrekujem kód pre živú amébu...");
 
-        // Profesionálna 3D geometria s hustou sieťou pre budúce vlnenie
         const geometry = new THREE.IcosahedronGeometry(1.2, 4);
-        
-        // Žiariaci, polo-priehľadný organický materiál
         const material = new THREE.MeshPhongMaterial({ 
             color: 0x38bdf8, 
             emissive: 0x0ea5e9, 
@@ -22,50 +24,69 @@ const Player = {
         });
 
         this.mesh = new THREE.Mesh(geometry, material);
-        scene.add(this.mesh); // Pridanie do scény z game.js
+        scene.add(this.mesh);
 
-        // Sledovanie dotyku/myši pre iPhone aj PC
+        // Reset pozície na začiatku
+        this.posX = 0;
+        this.posY = 0;
+
+        // Vstup pre mobil aj PC
         window.addEventListener("touchmove", (e) => {
-            // Zabránime rolovaniu stránky na iPhone pri ťahaní prsta
             if (e.cancelable) e.preventDefault();
-            this.handleInput(e.touches[0].clientX, e.touches[0].clientY);
+            this.calculateDirection(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: false });
 
         window.addEventListener("touchstart", (e) => {
             if (e.cancelable) e.preventDefault();
-            this.handleInput(e.touches[0].clientX, e.touches[0].clientY);
+            this.calculateDirection(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: false });
 
-        window.addEventListener("mousemove", (e) => this.handleInput(e.clientX, e.clientY));
+        // Keď pustíš prst z obrazovky iPhonu, bunka plynule zastaví
+        window.addEventListener("touchend", () => {
+            this.velocityX = 0;
+            this.velocityY = 0;
+        });
+
+        window.addEventListener("mousemove", (e) => {
+            // Na PC simulujeme stlačenie tlačidla, na mobile to ide cez touch automaty
+            if (e.buttons === 1) this.calculateDirection(e.clientX, e.clientY);
+        });
     },
 
-    handleInput(clientX, clientY) {
-        // NOVÁ PROFESIONÁLNA MATEMATIKA: 
-        // Prepočítavame súradnice dotyku presne podľa rozmerov okna a pozície kamery (Z = 15)
-        // Toto umožní bunke plávať presne pod tvojím prstom po celej obrazovke iPhonu
-        
-        const normX = (clientX / window.innerWidth) * 2 - 1;
-        const normY = -(clientY / window.innerHeight) * 2 + 1;
+    calculateDirection(clientX, clientY) {
+        // Zistíme stred obrazovky iPhonu
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
 
-        // Vynásobenie konštantou viditeľného poľa kamery pri danej vzdialenosti
-        const aspect = window.innerWidth / window.innerHeight;
-        this.targetX = normX * 10.5 * aspect;
-        this.targetY = normY * 10.5;
+        // Vypočítame vektor od stredu obrazovky k miestu dotyku prsta
+        const dirX = clientX - centerX;
+        const dirY = -(clientY - centerY); // Prevrátená Y-os pre 3D priestor
+
+        // Normalizácia vektora (aby bunka neletela rýchlejšie, keď klikneš ďalej)
+        const distance = Math.sqrt(dirX * dirX + dirY * dirY);
+        if (distance > 10) {
+            this.velocityX = (dirX / distance) * this.speed;
+            this.velocityY = (dirY / distance) * this.speed;
+        }
     },
 
     update() {
         if (!this.mesh) return;
 
-        // Plynulý organický pohyb smerom k prstu (zotrvačnosť)
-        this.mesh.position.x += (this.targetX - this.mesh.position.x) * 0.08;
-        this.mesh.position.y += (this.targetY - this.mesh.position.y) * 0.08;
+        // Pripočítavame rýchlosť k reálnej pozícii v nekonečne
+        this.posX += this.velocityX;
+        this.posY += this.velocityY;
 
-        // Konstantné mikroskopické pulzovanie (dýchanie bunky)
+        // Aktualizujeme pozíciu 3D modelu na scéne
+        this.mesh.position.x = this.posX;
+        this.mesh.position.y = this.posY;
+
+        // Organické dýchanie bunky
         const time = Date.now() * 0.004;
         const pulse = 1 + Math.sin(time) * 0.05;
         this.mesh.scale.setScalar(pulse);
 
-        // Jemná rotácia, aby svetlo hralo na povrchu
+        // Rotácia
         this.mesh.rotation.y += 0.005;
     }
 };
