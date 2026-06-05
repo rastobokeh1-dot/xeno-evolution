@@ -37,12 +37,15 @@ const Game = {
         this.animate();
     },
 
-    animate() {
+   animate() {
         requestAnimationFrame(() => Game.animate());
 
-        // Tu neskôr povieme hráčovi a entitám, aby sa aktualizovali každú snímku
+        // AKTUALIZÁCIA MODULOV
+        if (typeof Player !== 'undefined' && Player.update) {
+            Player.update(); // Hráč sa pohne a dýchne
+        }
         
-        // Vykreslenie scény cez našu kameru
+        // Vykreslenie scény
         renderer.render(scene, camera);
     }
 };
