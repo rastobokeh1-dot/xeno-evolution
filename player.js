@@ -89,7 +89,7 @@ const Player = {
         const dirY = -(clientY - centerY);
 
         const distance = Math.sqrt(dirX * dirX + dirY * dirY);
-        if (distance > 15) { // Mŕtva zóna v strede, aby bunka pri statickom dotyku netrhala
+        if (distance > 15) { 
             this.velocityX = (dirX / distance) * this.speed;
             this.velocityY = (dirY / distance) * this.speed;
         }
@@ -98,30 +98,26 @@ const Player = {
     mutate(type) {
         this.dna.level++;
         
-        // Nastavenie cieľovej farby podľa mutácie
-        let targetColor = 0x38bdf8; // Základná modrá
+        let targetColor = 0x38bdf8; 
         let targetEmissive = 0x0ea5e9;
 
         if (type === "VELOCIS") {
             this.dna.speedPoints++;
-            this.speed += 0.008; // Jemné zrýchlenie
-            targetColor = 0xa855f7; // Fialová
+            this.speed += 0.008; 
+            targetColor = 0xa855f7; 
             targetEmissive = 0x7e22ce;
         } else if (type === "TOXIC") {
             this.dna.toxicPoints++;
-            targetColor = 0xef4444; // Červená
+            targetColor = 0xef4444; 
             targetEmissive = 0x991b1b;
         }
 
-        // PLYNULÁ ZMENA VIZUÁLU (Režisérsky efekt prechodu)
         if (this.mesh && this.mesh.material) {
             this.mesh.material.color.setHex(targetColor);
             this.mesh.material.emissive.setHex(targetEmissive);
         }
 
-        // KREATÍVNA AI DETEKCIA EVOLÚCIE: Kombinácia génov
-        const totalGens = this.dna.speedPoints + this.dna.toxicPoints;
-        
+        // KREATÍVNA AI DETEKCIA EVOLÚCIE
         if (this.dna.speedPoints > this.dna.toxicPoints) {
             this.dna.name = `Xeno-Velocis v${this.dna.level}`;
             this.dna.title = `⚡ Bičíkový synapsor (Gen: ${this.dna.speedPoints})`;
@@ -133,35 +129,12 @@ const Player = {
             const lbl = document.getElementById("cell-label");
             if (lbl) lbl.style.color = "#ef4444";
         } else {
-            // Ak máš rovnako rýchlosti aj toxicity, vzniká hybrid!
             this.dna.name = `Chimera Hybridis`;
             this.dna.title = `🧬 Stabilizovaný hybrid (Evo: ${this.dna.level})`;
             const lbl = document.getElementById("cell-label");
             if (lbl) lbl.style.color = "#38bdf8";
         }
 
-        // Aktualizácia textu na displeji iPhonu
-        const mainName = document.getElementById("cell-main-name");
-        const subTitle = document.getElementById("cell-sub-title");
-        if (mainName) mainName.innerText = this.dna.name;
-        if (subTitle) subTitle.innerText = this.dna.title;
-    },
-        }
-
-        // AI Výber názvu podľa evolučnej vetvy
-        if (this.dna.speedPoints > this.dna.toxicPoints) {
-            this.dna.name = `Xeno-Velocis Mk.${this.dna.level}`;
-            this.dna.title = "⚡ Bičíkový synapsor";
-            const lbl = document.getElementById("cell-label");
-            if (lbl) lbl.style.color = "#a855f7";
-        } else {
-            this.dna.name = `Bio-Toxiferum Alpha`;
-            this.dna.title = "🧪 Kyselinový mutant";
-            const lbl = document.getElementById("cell-label");
-            if (lbl) lbl.style.color = "#ef4444";
-        }
-
-        // Bezpečný zápis do HTML
         const mainName = document.getElementById("cell-main-name");
         const subTitle = document.getElementById("cell-sub-title");
         if (mainName) mainName.innerText = this.dna.name;
@@ -171,14 +144,11 @@ const Player = {
     update() {
         if (!this.mesh) return;
 
-        // Pripočítanie rýchlosti k pozícii
         this.posX += this.velocityX;
         this.posY += this.velocityY;
 
-        // Aktualizácia 3D modelu
         this.mesh.position.set(this.posX, this.posY, 0);
 
-        // Prepočet 3D pozície na 2D pixely pre štítok nad bunkou
         const label = document.getElementById("cell-label");
         if (label && camera) {
             const tempV = new THREE.Vector3(this.posX, this.posY + 1.6, 0);
@@ -190,7 +160,6 @@ const Player = {
             label.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
         }
 
-        // Jemné dýchanie bunky
         const time = Date.now() * 0.004;
         this.mesh.scale.setScalar(1 + Math.sin(time) * 0.04);
         this.mesh.rotation.y += 0.005;
