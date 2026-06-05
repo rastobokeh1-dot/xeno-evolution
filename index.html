@@ -2,77 +2,20 @@
 <html lang="sk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xeno Genesis v5.1</title>
-    <style>
-        body { margin:0; overflow:hidden; background:#020617; }
-        #ui { position:fixed; top:20px; left:20px; color:#fff; font-family:system-ui; pointer-events:none; }
-        .bar { width:200px; height:8px; background:#1e293b; border-radius:4px; margin-top:8px; }
-        #bar { height:100%; width:0%; background:#38bdf8; border-radius:4px; transition:width 0.3s; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>XENO-GENESIS PRO</title>
+    <link rel="stylesheet" href="assets/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-<div id="ui">
-    <div style="font-size:12px; opacity:0.7;">BIOMASA</div>
-    <div class="bar"><div id="bar"></div></div>
-</div>
-<script>
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-    camera.position.z = 12;
-    const renderer = new THREE.WebGLRenderer({ antialias:true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    <div id="hud">
+        <div class="hud-label">BIOMASA</div>
+        <div class="bar"><div id="bar-fill"></div></div>
+    </div>
 
-    // Player - vylepšený materiál
-    const player = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(1, 4),
-        new THREE.MeshPhongMaterial({ color:0x38bdf8, emissive:0x0ea5e9, emissiveIntensity:0.5, shininess:100 })
-    );
-    scene.add(player);
-
-    const light = new THREE.PointLight(0xffffff, 1);
-    light.position.set(5,5,10);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0x222244));
-
-    let bio = 0;
-    const orbs = [];
-    
-    function spawnOrb() {
-        const o = new THREE.Mesh(new THREE.DodecahedronGeometry(0.2), new THREE.MeshBasicMaterial({color:0x22c55e}));
-        o.position.set((Math.random()-0.5)*30, (Math.random()-0.5)*20, 0);
-        scene.add(o);
-        orbs.push(o);
-    }
-    for(let i=0; i<50; i++) spawnOrb();
-
-    let tx=0, ty=0;
-    window.addEventListener("touchmove", e=>{ tx=(e.touches[0].clientX/window.innerWidth)*2-1; ty=-(e.touches[0].clientY/window.innerHeight)*2+1; });
-
-    function animate() {
-        requestAnimationFrame(animate);
-        
-        // Pohyb s "dýchaním"
-        player.position.x += (tx*8 - player.position.x)*0.05;
-        player.position.y += (ty*6 - player.position.y)*0.05;
-        player.rotation.y += 0.01;
-        player.scale.setScalar(1 + Math.sin(Date.now()*0.005)*0.1); // Organické dýchanie
-
-        orbs.forEach((o, i) => {
-            if(player.position.distanceTo(o.position) < 1.2) {
-                scene.remove(o);
-                orbs.splice(i, 1);
-                bio++;
-                document.getElementById('bar').style.width = (bio*2) + "%";
-                spawnOrb();
-            }
-        });
-
-        renderer.render(scene, camera);
-    }
-    animate();
-</script>
+    <script src="world.js"></script>
+    <script src="player.js"></script>
+    <script src="entities.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>
