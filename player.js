@@ -25,14 +25,32 @@ const Player = {
         scene.add(this.mesh); // Pridanie do scény z game.js
 
         // Sledovanie dotyku/myši pre iPhone aj PC
-        window.addEventListener("touchmove", (e) => this.handleInput(e.touches[0].clientX, e.touches[0].clientY));
+        window.addEventListener("touchmove", (e) => {
+            // Zabránime rolovaniu stránky na iPhone pri ťahaní prsta
+            if (e.cancelable) e.preventDefault();
+            this.handleInput(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+
+        window.addEventListener("touchstart", (e) => {
+            if (e.cancelable) e.preventDefault();
+            this.handleInput(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+
         window.addEventListener("mousemove", (e) => this.handleInput(e.clientX, e.clientY));
     },
 
     handleInput(clientX, clientY) {
-        // Prepočet pixelov z displeja na 3D súradnice sveta
-        this.targetX = (clientX / window.innerWidth) * 10 - 5;
-        this.targetY = -(clientY / window.innerHeight) * 6 + 3;
+        // NOVÁ PROFESIONÁLNA MATEMATIKA: 
+        // Prepočítavame súradnice dotyku presne podľa rozmerov okna a pozície kamery (Z = 15)
+        // Toto umožní bunke plávať presne pod tvojím prstom po celej obrazovke iPhonu
+        
+        const normX = (clientX / window.innerWidth) * 2 - 1;
+        const normY = -(clientY / window.innerHeight) * 2 + 1;
+
+        // Vynásobenie konštantou viditeľného poľa kamery pri danej vzdialenosti
+        const aspect = window.innerWidth / window.innerHeight;
+        this.targetX = normX * 10.5 * aspect;
+        this.targetY = normY * 10.5;
     },
 
     update() {
