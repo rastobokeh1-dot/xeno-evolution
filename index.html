@@ -3,17 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xeno Evolution v2</title>
+<title>Xeno Evolution REBUILD</title>
 
 <style>
-body { margin:0; overflow:hidden; background:#00010a; }
+body { margin:0; overflow:hidden; background:#00040f; }
 #ui {
     position:fixed;
-    top:15px;
-    left:15px;
+    top:12px;
+    left:12px;
     color:white;
     font-family:system-ui;
     z-index:10;
+    font-size:14px;
 }
 .bar {
     width:200px;
@@ -42,146 +43,111 @@ body { margin:0; overflow:hidden; background:#00010a; }
 
 <script>
 
-// ======================
-// SCÉNA
-// ======================
+// =====================
+// BASIC WORLD
+// =====================
 const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x00040f, 10, 40);
 
-// hviezdy (vizuál)
-for(let i=0;i<200;i++){
-    const star = new THREE.Mesh(
-        new THREE.SphereGeometry(0.02,4,4),
-        new THREE.MeshBasicMaterial({ color:0xffffff })
-    );
-    star.position.set(
-        (Math.random()-0.5)*50,
-        (Math.random()-0.5)*30,
-        (Math.random()-0.5)*20
-    );
-    scene.add(star);
-}
-
-// kamera
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.z = 12;
 
-// renderer
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// ======================
-// PLAYER
-// ======================
+// =====================
+// PLAYER (smooth core)
+// =====================
 const player = new THREE.Mesh(
     new THREE.SphereGeometry(0.8, 16, 16),
     new THREE.MeshBasicMaterial({ color:0x38bdf8 })
 );
 scene.add(player);
 
-// ======================
-// INPUT (JOYSTICK STYLE)
-// ======================
-let inputX = 0;
-let inputY = 0;
+// =====================
+// INPUT (FIXED = smooth joystick)
+// =====================
+let targetX = 0;
+let targetY = 0;
 
-function setInput(clientX, clientY){
-    inputX = (clientX / window.innerWidth) * 2 - 1;
-    inputY = -(clientY / window.innerHeight) * 2 + 1;
+function updateInput(x,y){
+    targetX = (x / window.innerWidth) * 2 - 1;
+    targetY = -(y / window.innerHeight) * 2 + 1;
 }
 
-window.addEventListener("touchmove",(e)=>{
-    setInput(e.touches[0].clientX, e.touches[0].clientY);
+window.addEventListener("touchstart", e=>{
+    updateInput(e.touches[0].clientX, e.touches[0].clientY);
 });
 
-window.addEventListener("mousemove",(e)=>{
-    setInput(e.clientX, e.clientY);
+window.addEventListener("touchmove", e=>{
+    updateInput(e.touches[0].clientX, e.touches[0].clientY);
 });
 
-// ======================
+window.addEventListener("mousemove", e=>{
+    updateInput(e.clientX, e.clientY);
+});
+
+// =====================
 // ORBS
-// ======================
+// =====================
 const orbs = [];
 
 function spawnOrb(){
     const orb = new THREE.Mesh(
-        new THREE.SphereGeometry(0.15,10,10),
+        new THREE.SphereGeometry(0.15, 10, 10),
         new THREE.MeshBasicMaterial({ color:0x22c55e })
     );
 
-    orb.position.set(
-        (Math.random()-0.5)*25,
-        (Math.random()-0.5)*18,
-        0
-    );
+    orb.position.x = (Math.random()-0.5)*20;
+    orb.position.y = (Math.random()-0.5)*14;
+    orb.position.z = 0;
 
     scene.add(orb);
     orbs.push(orb);
 }
 
-for(let i=0;i<50;i++) spawnOrb();
+for(let i=0;i<40;i++) spawnOrb();
 
-// ======================
+// =====================
 // GAME STATE
-// ======================
+// =====================
 let biomass = 0;
 
 const bio = document.getElementById("bio");
 const bar = document.getElementById("bar");
 
-// ======================
-// CAMERA FOLLOW (smooth)
-// ======================
-const camTarget = new THREE.Vector3();
-
-// ======================
-// LOOP
-// ======================
+// =====================
+// MAIN LOOP (STABLE MOVEMENT MODEL)
+// =====================
 function animate(){
     requestAnimationFrame(animate);
 
-    // ======================
-    // PLAYER MOVEMENT (FIXED)
-    // ======================
-    const speed = 0.15;
+    // 🔥 SMOOTH PLAYER MOVEMENT (FIXED CORE PROBLEM)
+    player.position.x += (targetX * 8 - player.position.x) * 0.08;
+    player.position.y += (targetY * 5 - player.position.y) * 0.08;
 
-    player.position.x += inputX * speed;
-    player.position.y += inputY * speed;
+    // breathing
+    player.scale.setScalar(1 + Math.sin(Date.now()*0.003)*0.04);
 
-    // clamp (neujde mimo svet)
-    player.position.x = Math.max(-10, Math.min(10, player.position.x));
-    player.position.y = Math.max(-6, Math.min(6, player.position.y));
-
-    // ======================
-    // CAMERA SMOOTH FOLLOW
-    // ======================
-    camTarget.x = player.position.x * 0.6;
-    camTarget.y = player.position.y * 0.6;
-
-    camera.position.x += (camTarget.x - camera.position.x) * 0.05;
-    camera.position.y += (camTarget.y - camera.position.y) * 0.05;
-
-    camera.lookAt(player.position);
-
-    // ======================
-    // ORB COLLISION (STABLE)
-    // ======================
+    // =====================
+    // ORB SYSTEM (clean + stable)
+    // =====================
     for(let i=orbs.length-1;i>=0;i--){
         const o = orbs[i];
 
         const dx = player.position.x - o.position.x;
         const dy = player.position.y - o.position.y;
-
         const dist = Math.sqrt(dx*dx + dy*dy);
 
-        // magnet
+        // magnet (jemný)
         if(dist < 3){
-            o.position.x += dx * 0.02;
-            o.position.y += dy * 0.02;
+            o.position.x += dx * 0.015;
+            o.position.y += dy * 0.015;
         }
 
-        // pickup
-        if(dist < 0.7){
+        // pickup (presný a stabilný)
+        if(dist < 0.75){
             scene.remove(o);
             orbs.splice(i,1);
 
@@ -201,7 +167,7 @@ function animate(){
 
 animate();
 
-// resize
+// resize fix
 window.addEventListener("resize",()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
