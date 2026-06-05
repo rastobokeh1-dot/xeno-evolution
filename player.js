@@ -1,6 +1,6 @@
 console.log("🧫 Modul PLAYER: Evolučná DNA pripravená.");
 
-const Player = {
+window.Player = {
     mesh: null,
     posX: 0,
     posY: 0,
@@ -32,10 +32,9 @@ const Player = {
         this.mesh = new THREE.Mesh(geometry, material);
         scene.add(this.mesh);
 
-        // Vytvorenie HTML štítku nad bunkou
         this.createCellLabel();
 
-        // Ovládanie pre iPhone (Touch)
+        // Ovládanie pre iPhone
         window.addEventListener("touchmove", (e) => {
             if (e.cancelable) e.preventDefault();
             this.calculateDirection(e.touches[0].clientX, e.touches[0].clientY);
@@ -51,7 +50,7 @@ const Player = {
             this.velocityY = 0;
         });
 
-        // Ovládanie pre PC (Myš - pri držaní kliku)
+        // Ovládanie pre PC
         window.addEventListener("mousemove", (e) => {
             if (e.buttons === 1) this.calculateDirection(e.clientX, e.clientY);
         });
@@ -75,7 +74,7 @@ const Player = {
         label.style.textShadow = "0 0 8px #0ea5e9";
         label.style.pointerEvents = "none";
         label.style.textAlign = "center";
-        label.style.zIndex = "1000";
+        label.style.zIndex = "99999";
         
         label.innerHTML = `<div id="cell-main-name">${this.dna.name}</div><div id="cell-sub-title" style="font-size:8px; color:#64748b; font-style:italic;">${this.dna.title}</div>`;
         
@@ -117,7 +116,6 @@ const Player = {
             this.mesh.material.emissive.setHex(targetEmissive);
         }
 
-        // KREATÍVNA AI DETEKCIA EVOLÚCIE
         if (this.dna.speedPoints > this.dna.toxicPoints) {
             this.dna.name = `Xeno-Velocis v${this.dna.level}`;
             this.dna.title = `⚡ Bičíkový synapsor (Gen: ${this.dna.speedPoints})`;
@@ -141,7 +139,7 @@ const Player = {
         if (subTitle) subTitle.innerText = this.dna.title;
     },
 
-   update() {
+    update() {
         if (!this.mesh) return;
 
         this.posX += this.velocityX;
@@ -149,27 +147,18 @@ const Player = {
 
         this.mesh.position.set(this.posX, this.posY, 0);
 
-        // NEPRIESTRELNÉ POZÍCIOVANIE PRE iPHONE
         const label = document.getElementById("cell-label");
         if (label && typeof camera !== 'undefined') {
-            // Posunieme text trošku vyššie nad bunku (Y + 1.8)
             const tempV = new THREE.Vector3(this.posX, this.posY + 1.8, 0);
             tempV.project(camera);
             
-            // Prepočet 3D sveta na presné pixely tvojho displeja
             const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
             const y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
             
-            // Používame natívne CSS pixely (funguje 100% všade)
             label.style.left = Math.round(x) + "px";
             label.style.top = Math.round(y) + "px";
             label.style.transform = "translate(-50%, -50%)";
         }
-
-        const time = Date.now() * 0.004;
-        this.mesh.scale.setScalar(1 + Math.sin(time) * 0.04);
-        this.mesh.rotation.y += 0.005;
-    }
 
         const time = Date.now() * 0.004;
         this.mesh.scale.setScalar(1 + Math.sin(time) * 0.04);
