@@ -8,15 +8,15 @@ window.Entities = {
 
     spawnOrb(aroundX, aroundY) {
         const angle = Math.random() * Math.PI * 2;
-        const radius = 10 + Math.random() * 20; 
+        const radius = 15 + Math.random() * 25; // Generuje sa trochu ďalej, aby to nevyskakovalo priamo pred očami
         const oX = aroundX + Math.cos(angle) * radius;
         const oY = aroundY + Math.sin(angle) * radius;
 
-        let geometry = new THREE.DodecahedronGeometry(0.2); // Zväčšené
+        let geometry = new THREE.DodecahedronGeometry(0.2); 
         let material = new THREE.MeshStandardMaterial({ 
             color: 0x22c55e, 
             emissive: 0x15803d, 
-            emissiveIntensity: 3 // Silnejší Bloom
+            emissiveIntensity: 3 
         });
         
         const orb = new THREE.Mesh(geometry, material);
@@ -33,7 +33,8 @@ window.Entities = {
             emissiveIntensity: 2 
         });
         const trap = new THREE.Mesh(geometry, material);
-        trap.position.set((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50, 0);
+        // Pasce sa rozhádžu po väčšej ploche
+        trap.position.set((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, 0);
         scene.add(trap);
         this.traps.push(trap);
     },
@@ -41,31 +42,48 @@ window.Entities = {
     update() {
         if (!window.Player || !window.Player.mesh) return;
 
-        // 1. Zber potravy
+        const pX = window.Player.posX;
+        const pY = window.Player.posY;
+
+        // 1. ZBER A ČISTENIE POTRAVY
         for (let i = this.orbs.length - 1; i >= 0; i--) {
             const orb = this.orbs[i];
-            if (window.Player.mesh.position.distanceTo(orb.position) < 1.5) {
+            const dist = window.Player.mesh.position.distanceTo(orb.position);
+
+            // Zjedenie potravy
+            if (dist < 1.5) {
                 scene.remove(orb);
                 this.orbs.splice(i, 1);
                 this.biomassCount++;
                 this.updateUI();
+                continue;
+            }
+
+            // ⚠️ CHÝBAJÚCA ČASŤ DOPLNENÁ: Zmazanie starej potravy za chrbtom
+            if (dist > 45) {
+                scene.remove(orb);
+                this.orbs.splice(i, 1);
             }
         }
 
-        // 2. Pasce
+        // 2. PASCE (Priťahovanie)
         for (let trap of this.traps) {
             trap.rotation.z += 0.01;
             trap.material.emissiveIntensity = 1 + Math.sin(Date.now() * 0.005) * 0.5;
             
-            if (window.Player.mesh.position.distanceTo(trap.position) < 10) {
-                const force = (10 - window.Player.mesh.position.distanceTo(trap.position)) * 0.001;
-                window.Player.velocityX += (trap.position.x - window.Player.posX) * force;
-                window.Player.velocityY += (trap.position.y - window.Player.posY) * force;
+            const distTrap = window.Player.mesh.position.distanceTo(trap.position);
+            if (distTrap < 10) {
+                const force = (10 - distTrap) * 0.001;
+                window.Player.velocityX += (trap.position.x - pX) * force;
+                window.Player.velocityY += (trap.position.y - pY) * force;
             }
         }
 
-        // 3. Dopĺňanie potravy
-        while (this.orbs.length < this.maxOrbs) this.spawnOrb(window.Player.posX, window.Player.posY);
+        // 3. DOPĹŇANIE POTRAVY
+        // Keď sa zmaže zjedená alebo ďaleká potrava, tu sa hneď vygeneruje nová okolo teba
+        while (this.orbs.length < this.maxOrbs) {
+            this.spawnOrb(pX, pY);
+        }
     },
 
     updateUI() {
