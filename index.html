@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xeno Evolution REBUILD</title>
+<title>Xeno Evolution FIX v2.1</title>
 
 <style>
 body { margin:0; overflow:hidden; background:#00040f; }
@@ -14,7 +14,6 @@ body { margin:0; overflow:hidden; background:#00040f; }
     color:white;
     font-family:system-ui;
     z-index:10;
-    font-size:14px;
 }
 .bar {
     width:200px;
@@ -44,20 +43,19 @@ body { margin:0; overflow:hidden; background:#00040f; }
 <script>
 
 // =====================
-// BASIC WORLD
+// WORLD
 // =====================
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x00040f, 10, 40);
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.z = 12;
+camera.position.set(0,0,12);
 
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // =====================
-// PLAYER (smooth core)
+// PLAYER
 // =====================
 const player = new THREE.Mesh(
     new THREE.SphereGeometry(0.8, 16, 16),
@@ -66,26 +64,22 @@ const player = new THREE.Mesh(
 scene.add(player);
 
 // =====================
-// INPUT (FIXED = smooth joystick)
+// INPUT (RELATIVE CONTROL)
 // =====================
-let targetX = 0;
-let targetY = 0;
+let inputX = 0;
+let inputY = 0;
 
-function updateInput(x,y){
-    targetX = (x / window.innerWidth) * 2 - 1;
-    targetY = -(y / window.innerHeight) * 2 + 1;
+function setInput(x,y){
+    inputX = (x / window.innerWidth) * 2 - 1;
+    inputY = -(y / window.innerHeight) * 2 + 1;
 }
 
-window.addEventListener("touchstart", e=>{
-    updateInput(e.touches[0].clientX, e.touches[0].clientY);
-});
-
 window.addEventListener("touchmove", e=>{
-    updateInput(e.touches[0].clientX, e.touches[0].clientY);
+    setInput(e.touches[0].clientX, e.touches[0].clientY);
 });
 
 window.addEventListener("mousemove", e=>{
-    updateInput(e.clientX, e.clientY);
+    setInput(e.clientX, e.clientY);
 });
 
 // =====================
@@ -95,19 +89,21 @@ const orbs = [];
 
 function spawnOrb(){
     const orb = new THREE.Mesh(
-        new THREE.SphereGeometry(0.15, 10, 10),
+        new THREE.SphereGeometry(0.15,10,10),
         new THREE.MeshBasicMaterial({ color:0x22c55e })
     );
 
-    orb.position.x = (Math.random()-0.5)*20;
-    orb.position.y = (Math.random()-0.5)*14;
-    orb.position.z = 0;
+    orb.position.set(
+        (Math.random()-0.5)*25,
+        (Math.random()-0.5)*15,
+        0
+    );
 
     scene.add(orb);
     orbs.push(orb);
 }
 
-for(let i=0;i<40;i++) spawnOrb();
+for(let i=0;i<50;i++) spawnOrb();
 
 // =====================
 // GAME STATE
@@ -118,20 +114,31 @@ const bio = document.getElementById("bio");
 const bar = document.getElementById("bar");
 
 // =====================
-// MAIN LOOP (STABLE MOVEMENT MODEL)
+// LOOP
 // =====================
 function animate(){
     requestAnimationFrame(animate);
 
-    // 🔥 SMOOTH PLAYER MOVEMENT (FIXED CORE PROBLEM)
-    player.position.x += (targetX * 8 - player.position.x) * 0.08;
-    player.position.y += (targetY * 5 - player.position.y) * 0.08;
+    // =====================
+    // PLAYER MOVEMENT
+    // =====================
+    player.position.x += inputX * 0.15;
+    player.position.y += inputY * 0.15;
 
-    // breathing
-    player.scale.setScalar(1 + Math.sin(Date.now()*0.003)*0.04);
+    // limit sveta
+    player.position.x = Math.max(-12, Math.min(12, player.position.x));
+    player.position.y = Math.max(-8, Math.min(8, player.position.y));
 
     // =====================
-    // ORB SYSTEM (clean + stable)
+    // CAMERA FOLLOW (FIX CORE BUG)
+    // =====================
+    camera.position.x += (player.position.x - camera.position.x) * 0.08;
+    camera.position.y += (player.position.y - camera.position.y) * 0.08;
+
+    camera.lookAt(player.position);
+
+    // =====================
+    // ORBS
     // =====================
     for(let i=orbs.length-1;i>=0;i--){
         const o = orbs[i];
@@ -140,14 +147,7 @@ function animate(){
         const dy = player.position.y - o.position.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
 
-        // magnet (jemný)
-        if(dist < 3){
-            o.position.x += dx * 0.015;
-            o.position.y += dy * 0.015;
-        }
-
-        // pickup (presný a stabilný)
-        if(dist < 0.75){
+        if(dist < 0.8){
             scene.remove(o);
             orbs.splice(i,1);
 
@@ -167,7 +167,6 @@ function animate(){
 
 animate();
 
-// resize fix
 window.addEventListener("resize",()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
