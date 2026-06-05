@@ -2,10 +2,13 @@ window.Entities = {
     orbs: [], 
     traps: [], 
     maxOrbs: 50,
+    maxTraps: 5,
     biomassCount: 0,
 
     init() {
+        // Inicializácia všetkého
         while (this.orbs.length < this.maxOrbs) this.spawnOrb(0, 0);
+        for (let i = 0; i < this.maxTraps; i++) this.spawnTrap();
     },
 
     spawnOrb(aroundX, aroundY) {
@@ -27,34 +30,52 @@ window.Entities = {
         this.orbs.push(orb);
     },
 
+    spawnTrap() {
+        const geometry = new THREE.IcosahedronGeometry(1.2, 0);
+        const material = new THREE.MeshPhongMaterial({ 
+            color: 0x4c0519, 
+            emissive: 0x881337, 
+            emissiveIntensity: 2, // Pre Bloom
+            shininess: 100,
+            transparent: true,
+            opacity: 0.8
+        });
+        const trap = new THREE.Mesh(geometry, material);
+        trap.position.set((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50, 0);
+        trap.userData = { damage: 0.5 };
+        scene.add(trap);
+        this.traps.push(trap);
+    },
+
     update() {
         if (!window.Player || !window.Player.mesh) return;
 
-        // 1. Zber potravy (tu bola tá chyba, chýbal tento cyklus)
+        // 1. Zber potravy
         for (let i = this.orbs.length - 1; i >= 0; i--) {
             const orb = this.orbs[i];
-            const dist = window.Player.mesh.position.distanceTo(orb.position);
-
-            // Ak sa dotkneš potravy
-            if (dist < 1.5) {
+            if (window.Player.mesh.position.distanceTo(orb.position) < 1.5) {
                 scene.remove(orb);
                 this.orbs.splice(i, 1);
                 this.biomassCount++;
                 this.updateUI();
-                continue; // Preskočíme zvyšok, lebo potrava už neexistuje
-            }
-
-            // 2. Čistenie ďalekej potravy (ak je príliš ďaleko od teba, zmaž ju)
-            if (dist > 40) {
-                scene.remove(orb);
-                this.orbs.splice(i, 1);
             }
         }
 
-        // 3. Udržuj počet potravy (dopĺňaj chýbajúce)
-        while (this.orbs.length < this.maxOrbs) {
-            this.spawnOrb(window.Player.posX, window.Player.posY);
+        // 2. Pasce - fyzika a pulzovanie
+        for (let trap of this.traps) {
+            trap.rotation.z += 0.01;
+            trap.material.emissiveIntensity = 1 + Math.sin(Date.now() * 0.005) * 0.5;
+            
+            const dist = window.Player.mesh.position.distanceTo(trap.position);
+            if (dist < 10) {
+                const force = (10 - dist) * 0.001;
+                window.Player.velocityX += (trap.position.x - window.Player.posX) * force;
+                window.Player.velocityY += (trap.position.y - window.Player.posY) * force;
+            }
         }
+
+        // 3. Udržiavanie limitov
+        while (this.orbs.length < this.maxOrbs) this.spawnOrb(window.Player.posX, window.Player.posY);
     },
 
     updateUI() {
