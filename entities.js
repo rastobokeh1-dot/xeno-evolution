@@ -1,17 +1,31 @@
-console.log("🦠 Modul ENTITIES: Ekosystém a mega efekty spustené.");
+console.log("🦠 Modul ENTITIES: Ekosystém obohatený o nebezpečné pasce.");
 
 window.Entities = {
     orbs: [],
-    particles: [], 
-    maxOrbs: 50,
+    traps: [], // 🕸️ Nový zásobník pre pasce
+    particles: [],
+    maxOrbs: 40,
+    maxTraps: 5, // Počet pascí na mape
+    biomassCount: 0,
     spawnRadius: 25,
     despawnRadius: 35,
-    biomassCount: 0,
 
     init() {
-        for (let i = 0; i < this.maxOrbs; i++) {
-            this.spawnOrb(0, 0);
-        }
+        for (let i = 0; i < this.maxOrbs; i++) this.spawnOrb(0, 0);
+        for (let i = 0; i < this.maxTraps; i++) this.spawnTrap();
+    },
+
+    spawnTrap() {
+        // Vytvoríme vizuálne odlišný objekt (tŕnitý)
+        const geometry = new THREE.TetrahedronGeometry(1.5, 1);
+        const material = new THREE.MeshPhongMaterial({ color: 0x1e293b, emissive: 0x0f172a, wireframe: true });
+        const trap = new THREE.Mesh(geometry, material);
+        
+        trap.position.set((Math.random()-0.5)*40, (Math.random()-0.5)*40, 0);
+        trap.userData = { damage: 0.5 }; // Koľko biomasy uberie
+        
+        scene.add(trap);
+        this.traps.push(trap);
     },
 
     spawnOrb(aroundX, aroundY) {
@@ -21,59 +35,25 @@ window.Entities = {
         const oY = aroundY + Math.sin(angle) * radius;
 
         const biome = (window.World && window.World.getBiomeAt) ? window.World.getBiomeAt(oX, oY) : "DEFAULT";
+        let geometry = new THREE.DodecahedronGeometry(0.15);
+        let material = new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x15803d, emissiveIntensity: 0.8 });
         
-        let geometry, material, type;
-
-        if (biome === "VELOCIS") {
-            geometry = new THREE.OctahedronGeometry(0.25);
-            material = new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x6b21a8, emissiveIntensity: 1 });
-            type = "VELOCIS";
-        } else if (biome === "TOXIC") {
-            geometry = new THREE.TetrahedronGeometry(0.25);
-            material = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: 1 });
-            type = "TOXIC";
-        } else {
-            geometry = new THREE.DodecahedronGeometry(0.15);
-            material = new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x15803d, emissiveIntensity: 0.8 });
-            type = "DEFAULT";
-        }
-
         const orb = new THREE.Mesh(geometry, material);
         orb.position.set(oX, oY, 0);
-        orb.userData = { type: type, colorHex: material.color.getHex() };
+        orb.userData = { type: "DEFAULT", colorHex: 0x22c55e };
 
-        if (typeof scene !== 'undefined') {
-            scene.add(orb);
-            this.orbs.push(orb);
-        }
+        scene.add(orb);
+        this.orbs.push(orb);
     },
 
-    // 💥 UPGRADOVANÁ EXPLÓZIA – Častice sú väčšie a rýchlejšie vyletia z bunky
     createExplosion(x, y, colorHex) {
-        if (typeof scene === 'undefined') return;
-        const particleCount = 12; // Viac častíc pre bohatší efekt
-        
+        const particleCount = 8;
         for (let i = 0; i < particleCount; i++) {
-            // Zmena z BoxGeometry na guľaté SphereGeometry (0.25 je už viditeľná veľkosť)
-            const geom = new THREE.SphereGeometry(0.12, 6, 6);
-            const mat = new THREE.MeshBasicMaterial({ 
-                color: colorHex, 
-                transparent: true, 
-                opacity: 1.0
-            });
+            const geom = new THREE.SphereGeometry(0.1, 4, 4);
+            const mat = new THREE.MeshBasicMaterial({ color: colorHex });
             const p = new THREE.Mesh(geom, mat);
             p.position.set(x, y, 0);
-
-            const angle = Math.random() * Math.PI * 2;
-            // Výrazne vyššia rýchlosť (0.25 až 0.45), aby preleteli cez stenu hráča
-            const speed = 0.25 + Math.random() * 0.2; 
-            
-            p.userData = {
-                vX: Math.cos(angle) * speed,
-                vY: Math.sin(angle) * speed,
-                life: 1.0 
-            };
-            
+            p.userData = { vX: (Math.random()-0.5)*0.2, vY: (Math.random()-0.5)*0.2, life: 1.0 };
             scene.add(p);
             this.particles.push(p);
         }
@@ -81,74 +61,42 @@ window.Entities = {
 
     update() {
         if (!window.Player || !window.Player.mesh) return;
-        
-        const pX = window.Player.posX;
-        const pY = window.Player.posY;
 
-        // Aktualizácia častíc
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            let p = this.particles[i];
-            p.position.x += p.userData.vX;
-            p.position.y += p.userData.vY;
+        // 🕸️ Kontrola pascí (Gravitácia a Poškodenie)
+        for (let trap of this.traps) {
+            trap.rotation.z += 0.01;
+            const dist = window.Player.mesh.position.distanceTo(trap.position);
             
-            // Trenie vody – častice spomalia, keď vyletia (pôsobí to organickejšie)
-            p.userData.vX *= 0.92;
-            p.userData.vY *= 0.92;
+            // Ak je hráč blízko, pasca ho priťahuje
+            if (dist < 8) {
+                const force = (8 - dist) * 0.002;
+                window.Player.velocityX += (trap.position.x - window.Player.posX) * force;
+                window.Player.velocityY += (trap.position.y - window.Player.posY) * force;
+            }
 
-            p.userData.life -= 0.025; // O niečo pomalšie miznutie
-            p.material.opacity = p.userData.life;
-            p.scale.setScalar(p.userData.life); 
-            
-            if (p.userData.life <= 0) {
-                if (typeof scene !== 'undefined') scene.remove(p);
-                this.particles.splice(i, 1);
+            // Ak sa dotkne, stráca biomasu
+            if (dist < 1.5) {
+                this.biomassCount = Math.max(0, this.biomassCount - 0.1);
+                this.updateUI();
             }
         }
 
-        // Aktualizácia orbs
+        // Aktualizácia orbov (ostáva rovnaká)
         for (let i = this.orbs.length - 1; i >= 0; i--) {
             const orb = this.orbs[i];
-            if (!orb) continue;
-
-            orb.rotation.x += 0.02;
-            orb.rotation.y += 0.02;
-
-            const distance = window.Player.mesh.position.distanceTo(orb.position);
-
-            if (distance < (1.2 * window.Player.mesh.scale.x + 0.2)) {
-                const type = orb.userData.type;
-                const hexColor = orb.userData.colorHex;
-                
-                // Spustenie novej silnej explózie
-                this.createExplosion(orb.position.x, orb.position.y, hexColor);
-                
-                if (typeof scene !== 'undefined') scene.remove(orb);
+            if (window.Player.mesh.position.distanceTo(orb.position) < 1.5) {
+                this.createExplosion(orb.position.x, orb.position.y, orb.userData.colorHex);
+                scene.remove(orb);
                 this.orbs.splice(i, 1);
-
                 this.biomassCount++;
                 this.updateUI();
-
-                if (window.Player.mutate) {
-                    window.Player.mutate(type);
-                }
-
-                this.spawnOrb(pX, pY);
-                continue;
-            }
-
-            if (distance > this.despawnRadius) {
-                if (typeof scene !== 'undefined') scene.remove(orb);
-                this.orbs.splice(i, 1);
-                this.spawnOrb(pX, pY);
+                this.spawnOrb(window.Player.posX, window.Player.posY);
             }
         }
     },
 
     updateUI() {
         const barFill = document.getElementById("bar-fill");
-        if (barFill) {
-            const percentage = Math.min(this.biomassCount * 2, 100);
-            barFill.style.width = percentage + "%";
-        }
+        if (barFill) barFill.style.width = Math.min(this.biomassCount * 2, 100) + "%";
     }
 };
