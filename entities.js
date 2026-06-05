@@ -1,79 +1,95 @@
-console.log("🦠 Modul ENTITIES: Načítaný a pripravený.");
+console.log("🦠 Modul ENTITIES: Procedurálny ekosystém spustený.");
 
 const Entities = {
     orbs: [],
-    maxOrbs: 40,
-    biomassCount: 0, // Sledovanie skóre
+    maxOrbs: 50,
+    biomassCount: 0,
+    spawnRadius: 25,
+    despawnRadius: 35,
 
     init() {
-        console.log("🦠 Prebúdzam mikro-organizmy...");
-        
-        // Vygenerujeme počiatočnú vlnu potravy
         for (let i = 0; i < this.maxOrbs; i++) {
-            this.spawnOrb();
+            this.spawnOrb(0, 0);
         }
     },
 
-    spawnOrb() {
-        // Profesionálna 3D geometria pre mikro-organizmy (Dodecahedron = 12-sten)
-        const geometry = new THREE.DodecahedronGeometry(0.15);
-        const material = new THREE.MeshStandardMaterial({
-            color: 0x22c55e,
-            emissive: 0x15803d,
-            emissiveIntensity: 0.8,
-            roughness: 0.1
-        });
+    spawnOrb(aroundX, aroundY) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 5 + Math.random() * (this.spawnRadius - 5); 
+        const oX = aroundX + Math.cos(angle) * radius;
+        const oY = aroundY + Math.sin(angle) * radius;
+
+        // ZISTÍME BIÓM ZO SEEDU PRE TIETO SÚRADNICE
+        const biome = World.getBiomeAt(oX, oY);
+        
+        let geometry, material, type;
+
+        if (biome === "VELOCIS") {
+            // Fialová mutantná bunka (Osemsten)
+            geometry = new THREE.OctahedronGeometry(0.25);
+            material = new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x6b21a8, emissiveIntensity: 1 });
+            type = "VELOCIS";
+        } else if (biome === "TOXIC") {
+            // Červená/Zelená dravá bunka (Štvorsten)
+            geometry = new THREE.TetrahedronGeometry(0.25);
+            material = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: 1 });
+            type = "TOXIC";
+        } else {
+            // Štandardná zelená biomasa
+            geometry = new THREE.DodecahedronGeometry(0.15);
+            material = new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x15803d, emissiveIntensity: 0.8 });
+            type = "DEFAULT";
+        }
 
         const orb = new THREE.Mesh(geometry, material);
-
-        // Náhodné umiestnenie v hernej zóne
-        orb.position.set(
-            (Math.random() - 0.5) * 25, // X-os
-            (Math.random() - 0.5) * 15, // Y-os
-            0                           // Z-os (v rovine hráča)
-        );
+        orb.position.set(oX, oY, 0);
+        orb.userData = { type: type }; // Uložíme typ bunky priamo do 3D objektu
 
         scene.add(orb);
         this.orbs.push(orb);
     },
 
     update() {
-        // Kontrola kolízie s hráčom (v player.js máme Player.mesh)
         if (!Player.mesh) return;
+        const pX = Player.posX;
+        const pY = Player.posY;
 
         for (let i = this.orbs.length - 1; i >= 0; i--) {
             const orb = this.orbs[i];
-
-            // Plynulá rotácia potravy, aby to žilo
             orb.rotation.x += 0.01;
             orb.rotation.y += 0.01;
 
-            // Výpočet vzdialenosti medzi stredom bunky a potravou
             const distance = Player.mesh.position.distanceTo(orb.position);
 
-            // Detekcia pohltenia (ak je vzdialenosť menšia ako polomer bunky + potravy)
-            if (distance < 1.3) {
-                scene.remove(orb); // Zmazať z 3D sveta
-                this.orbs.splice(i, 1); // Zmazať z poľa
+            // Pohltenie
+            if (distance < (1.2 * Player.mesh.scale.x + 0.2)) {
+                const type = orb.userData.type;
+                
+                scene.remove(orb);
+                this.orbs.splice(i, 1);
 
-                // Logika rastu a skóre
                 this.biomassCount++;
                 this.updateUI();
 
-                // Nový režisérsky efekt: Jemné zväčšenie hráča pri každom zjední
-                Player.mesh.scale.multiplyScalar(1.01);
+                // SPUSŤ EVOLÚCIU HRAČA PODĽA TYPU BUNKY!
+                Player.mutate(type);
 
-                // Okamžite spawni novú potravu niekde inde, aby bol ekosystém nekonečný
-                this.spawnOrb();
+                this.spawnOrb(pX, pY);
+                continue;
+            }
+
+            // Despawn mimo dohľad iPhonu
+            if (distance > this.despawnRadius) {
+                scene.remove(orb);
+                this.orbs.splice(i, 1);
+                this.spawnOrb(pX, pY);
             }
         }
     },
 
     updateUI() {
-        // Prepojenie na naše HTML/CSS rozhranie
         const barFill = document.getElementById("bar-fill");
         if (barFill) {
-            // Prúžok biomasy sa bude plniť (max 100%)
             const percentage = Math.min(this.biomassCount * 2, 100);
             barFill.style.width = percentage + "%";
         }
