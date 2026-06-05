@@ -1,12 +1,12 @@
-console.log("🦠 Modul ENTITIES: Ekosystém a efekty spustené.");
+console.log("🦠 Modul ENTITIES: Ekosystém a mega efekty spustené.");
 
 window.Entities = {
     orbs: [],
-    particles: [], // 💥 Nový zásobník pre vizuálne efekty
+    particles: [], 
     maxOrbs: 50,
-    biomassCount: 0,
     spawnRadius: 25,
     despawnRadius: 35,
+    biomassCount: 0,
 
     init() {
         for (let i = 0; i < this.maxOrbs; i++) {
@@ -48,28 +48,30 @@ window.Entities = {
         }
     },
 
-    // 💥 Funkcia na vytvorenie explózie častíc
+    // 💥 UPGRADOVANÁ EXPLÓZIA – Častice sú väčšie a rýchlejšie vyletia z bunky
     createExplosion(x, y, colorHex) {
         if (typeof scene === 'undefined') return;
-        const particleCount = 8; // Počet odletujúcich kúskov
+        const particleCount = 12; // Viac častíc pre bohatší efekt
         
         for (let i = 0; i < particleCount; i++) {
-            const geom = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+            // Zmena z BoxGeometry na guľaté SphereGeometry (0.25 je už viditeľná veľkosť)
+            const geom = new THREE.SphereGeometry(0.12, 6, 6);
             const mat = new THREE.MeshBasicMaterial({ 
                 color: colorHex, 
                 transparent: true, 
-                opacity: 1 
+                opacity: 1.0
             });
             const p = new THREE.Mesh(geom, mat);
             p.position.set(x, y, 0);
 
             const angle = Math.random() * Math.PI * 2;
-            const speed = 0.05 + Math.random() * 0.08;
+            // Výrazne vyššia rýchlosť (0.25 až 0.45), aby preleteli cez stenu hráča
+            const speed = 0.25 + Math.random() * 0.2; 
             
             p.userData = {
                 vX: Math.cos(angle) * speed,
                 vY: Math.sin(angle) * speed,
-                life: 1.0 // Životnosť častice
+                life: 1.0 
             };
             
             scene.add(p);
@@ -83,14 +85,19 @@ window.Entities = {
         const pX = window.Player.posX;
         const pY = window.Player.posY;
 
-        // 💥 Aktualizácia častíc (explózií)
+        // Aktualizácia častíc
         for (let i = this.particles.length - 1; i >= 0; i--) {
             let p = this.particles[i];
             p.position.x += p.userData.vX;
             p.position.y += p.userData.vY;
-            p.userData.life -= 0.03; // Postupné miznutie
+            
+            // Trenie vody – častice spomalia, keď vyletia (pôsobí to organickejšie)
+            p.userData.vX *= 0.92;
+            p.userData.vY *= 0.92;
+
+            p.userData.life -= 0.025; // O niečo pomalšie miznutie
             p.material.opacity = p.userData.life;
-            p.scale.setScalar(p.userData.life); // Zmenšovanie častice
+            p.scale.setScalar(p.userData.life); 
             
             if (p.userData.life <= 0) {
                 if (typeof scene !== 'undefined') scene.remove(p);
@@ -98,7 +105,7 @@ window.Entities = {
             }
         }
 
-        // Aktualizácia jedla (Orbs)
+        // Aktualizácia orbs
         for (let i = this.orbs.length - 1; i >= 0; i--) {
             const orb = this.orbs[i];
             if (!orb) continue;
@@ -112,7 +119,7 @@ window.Entities = {
                 const type = orb.userData.type;
                 const hexColor = orb.userData.colorHex;
                 
-                // 💥 Odpálenie explózie pri zjedení
+                // Spustenie novej silnej explózie
                 this.createExplosion(orb.position.x, orb.position.y, hexColor);
                 
                 if (typeof scene !== 'undefined') scene.remove(orb);
