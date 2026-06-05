@@ -3,237 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Amoeba Cinematic Universe</title>
+    <title>Amoeba Evolution 1.1</title>
     <style>
-        /* 1. SEKCIA: DIZAJN ROZHRANIA (HUD) */
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background: #030712; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
-        
-        #hud {
-            position: absolute; top: env(safe-area-inset-top, 20px); left: 16px; right: 16px;
-            padding: 14px 20px; background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px; z-index: 10; display: flex; justify-content: space-between; color: #fff;
-        }
-        .panel h2 { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; margin-bottom: 2px; }
-        .panel p { font-size: 16px; font-weight: 300; }
-        
-        #evolve-btn {
-            position: absolute; bottom: env(safe-area-inset-bottom, 20px); left: 50%; transform: translateX(-50%);
-            z-index: 10; padding: 16px 40px; background: #fff; color: #000; border: none;
-            border-radius: 30px; font-weight: 600; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase;
-            box-shadow: 0 10px 30px rgba(255,255,255,0.2); display: none; transition: all 0.3s ease;
-        }
-        #evolve-btn.ready { display: block; animation: pulse 1.5s infinite alternate; }
-        @keyframes pulse { from { transform: translate(-50%, 0) scale(1); } to { transform: translate(-50%, -6px) scale(1.02); } }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { background: #030712; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #hud { position: absolute; top: env(safe-area-inset-top, 20px); left: 20px; right: 20px; z-index: 10; color: #fff; display: flex; justify-content: space-between; }
+        .label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; }
+        .value { font-size: 18px; font-weight: 300; }
+        #btn-evolve { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 10; padding: 15px 30px; background: #fff; border-radius: 30px; font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; display: none; }
+        #btn-evolve.active { display: block; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
 <div id="canvas-container"></div>
-
 <div id="hud">
-    <div class="panel">
-        <h2>Fáza organizmu</h2>
-        <p id="stage-name">Mikroskopická bunka</p>
-    </div>
-    <div class="panel" style="text-align: right;">
-        <h2>Nenásytnosť (Biomasa)</h2>
-        <p id="biomass-val" style="color: #0ea5e9; font-weight: 600;">0%</p>
-    </div>
+    <div><div class="label">Evolúcia</div><div id="txt-stage" class="value">Mikro-Bunka</div></div>
+    <div style="text-align: right;"><div class="label">Biomasa</div><div id="txt-biomass" class="value">0%</div></div>
 </div>
-
-<button id="evolve-btn">Spustiť delenie buniek</button>
+<button id="btn-evolve">Evolvovať</button>
 
 <script>
-    // 2. SEKCIA: MATEMATICKÉ SHADERY (GRAFIKA VYSKEJ ÚROVNE)
-    const vertexShader = `
-        uniform float uTime;
-        varying vec3 vNormal;
-        
-        // Simplexný šum pre plynulé organické deformácie membrány
-        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
-        vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
-        float snoise(vec3 v) {
-            const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-            const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-            vec3 i  = floor(v + dot(v, C.yyy) );
-            vec3 x0 = v - i + dot(i, C.xxx) ;
-            vec3 g = step(x0.yzx, x0.xyz);
-            vec3 l = 1.0 - g;
-            vec3 i1 = min( g.xyz, l.zxy );
-            vec3 i2 = max( g.xyz, l.zxy );
-            vec3 x1 = x0 - i1 + C.xxx;
-            vec3 x2 = x0 - i2 + C.yyy;
-            vec3 x3 = x0 - D.yyy;
-            i = mod289(i);
-            vec4 p = permute( permute( permute(
-                        i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-                    + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
-                    + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
-            float n_ = 0.142857142857;
-            vec3 ns = n_ * D.wyz - D.xzx;
-            vec4 j = p - 49.0 * floor(p * ns.z);
-            vec4 x_ = floor(j * ns.z);
-            vec4 y_ = floor(j - 70.0 * x_ );
-            vec4 x = x_ *ns.x + ns.yyyy;
-            vec4 y = y_ *ns.x + ns.yyyy;
-            vec4 h = 1.0 - abs(x) - abs(y);
-            vec4 b0 = vec4( x.xy, y.xy );
-            vec4 b1 = vec4( x.zw, y.zw );
-            vec4 s0 = floor(b0)*2.0 + 1.0;
-            vec4 s1 = floor(b1)*2.0 + 1.0;
-            vec4 sh = -step(h, vec4(0.0));
-            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
-            vec3 p0 = vec3(a0.xy,h.x);
-            vec3 p1 = vec3(a0.zw,h.y);
-            vec3 p2 = vec3(a1.xy,h.z);
-            vec3 p3 = vec3(a1.zw,h.w);
-            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-            p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
-            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-            m = m * m;
-            return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
-        }
-
-        void main() {
-            vNormal = normal;
-            // Ohýbanie mesh-u na základe vĺn a času
-            float noise = snoise(vec3(position.xy * 1.5, uTime * 0.6));
-            vec3 newPosition = position + normal * noise * 0.2;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
-        }
-    `;
-
-    const fragmentShader = `
-        varying vec3 vNormal;
-        uniform vec3 uColor;
-
-        void main() {
-            // Fresnel (Svetelný okraj simulujúci mikroskopické podsvietenie)
-            float rim = dot(vec3(0.0, 0.0, 1.0), vNormal);
-            rim = clamp(1.0 - rim, 0.0, 1.0);
-            rim = pow(rim, 3.0);
-
-            vec3 finalColor = mix(uColor, vec3(1.0), rim * 0.4);
-            gl_FragColor = vec4(finalColor, 0.35 + rim * 0.5);
-        }
-    `;
-
-    // 3. SEKCIA: JADRO HRY A FYZIKA
     const container = document.getElementById('canvas-container');
-    const txtBiomass = document.getElementById('txt-biomass');
-    const txtStage = document.getElementById('stage-name');
-    const btnEvolve = document.getElementById('evolve-btn');
-
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#030712');
-    scene.fog = new THREE.FogExp2('#030712', 0.06);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
+    camera.position.z = 8;
 
-    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.z = 9;
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // INPUT OVLÁDANIE (iOS Touch)
-    let pointer = { x: 0, y: 0 };
-    let targetPointer = { x: 0, y: 0 };
-
-    function trackTouch(x, y) {
-        targetPointer.x = (x / window.innerWidth) * 2 - 1;
-        targetPointer.y = -(y / window.innerHeight) * 2 + 1;
-    }
-    window.addEventListener('touchmove', (e) => { trackTouch(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
-    window.addEventListener('touchstart', (e) => { trackTouch(e.touches[0].clientX, e.touches[0].clientY); });
-
-    // GENERÁCIA HRÁČA
-    const playerGeo = new THREE.IcosahedronGeometry(1.2, 4);
-    const playerMat = new THREE.ShaderMaterial({
-        vertexShader, fragmentShader,
-        uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color('#0ea5e9') } },
-        transparent: true, blending: THREE.AdditiveBlending
+    // Vizuálne vylepšenie: Materiál s jemným žiarením (Glow efekt)
+    const playerGeo = new THREE.IcosahedronGeometry(1.2, 5);
+    const playerMat = new THREE.MeshPhongMaterial({ 
+        color: 0x0ea5e9, 
+        emissive: 0x0ea5e9, 
+        emissiveIntensity: 0.5,
+        wireframe: false,
+        transparent: true,
+        opacity: 0.8
     });
-    const playerMesh = new THREE.Mesh(playerGeo, playerMat);
-    scene.add(playerMesh);
+    const player = new THREE.Mesh(playerGeo, playerMat);
+    scene.add(player);
 
-    // KRYŠTÁLY ŽIVÍN
-    const nutrients = [];
-    const nutGeo = new THREE.IcosahedronGeometry(0.15, 1);
-    const colors = ['#34d399', '#f43f5e', '#a855f7'];
+    const light = new THREE.PointLight(0xffffff, 1, 100);
+    light.position.set(5, 5, 5);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0x404040));
 
-    function createNutrient() {
-        const mat = new THREE.MeshBasicMaterial({ color: colors[Math.floor(Math.random() * colors.length)], wireframe: true });
-        const mesh = new THREE.Mesh(nutGeo, mat);
-        mesh.position.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 9, 0);
-        scene.add(mesh);
-        nutrients.push(mesh);
-    }
-    for(let i=0; i<15; i++) createNutrient();
+    let targetX = 0, targetY = 0;
+    window.addEventListener('touchmove', (e) => {
+        targetX = (e.touches[0].clientX / window.innerWidth) * 4 - 2;
+        targetY = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
+    });
 
-    // CYKLUS RENDERU (Plynulý beh)
-    let biomass = 0;
-    let clock = new THREE.Clock();
-
-    function run() {
-        requestAnimationFrame(run);
-        const time = clock.getElapsedTime();
-        playerMat.uniforms.uTime.value = time;
-
-        // Plynulé pritiahnutie améby k prstu (Zotrvačnosť)
-        pointer.x += (targetPointer.x * 5.0 - playerMesh.position.x) * 0.07;
-        pointer.y += (targetPointer.y * 3.2 - playerMesh.position.y) * 0.07;
-        playerMesh.position.x = pointer.x;
-        playerMesh.position.y = pointer.y;
-
-        // Detekcia pohltenia potravy
-        nutrients.forEach((nut, i) => {
-            nut.rotation.x += 0.02;
-            if(playerMesh.position.distanceTo(nut.position) < 1.3) {
-                scene.remove(nut);
-                nutrients.splice(i, 1);
-                createNutrient();
-
-                biomass += 10;
-                if(biomass > 100) biomass = 100;
-                document.getElementById('biomass-val').innerText = biomass + "%";
-
-                if(biomass >= 100) btnEvolve.classList.add('ready');
-            }
-        });
-
+    function animate() {
+        requestAnimationFrame(animate);
+        player.position.x += (targetX - player.position.x) * 0.05;
+        player.position.y += (targetY - player.position.y) * 0.05;
+        
+        // Organické dýchanie bunky
+        player.scale.setScalar(1 + Math.sin(Date.now() * 0.005) * 0.05);
+        
         renderer.render(scene, camera);
     }
-
-    // EVOLUČNÝ SKOK KANÁLOM KAMERY
-    btnEvolve.addEventListener('click', () => {
-        let zoom = setInterval(() => {
-            camera.position.z += 0.3;
-            if(camera.position.z >= 20) {
-                clearInterval(zoom);
-                txtStage.innerText = "2. Kolónia / Tkanivo";
-                biomass = 0;
-                document.getElementById('biomass-val').innerText = "0%";
-                btnEvolve.classList.remove('ready');
-                playerMat.uniforms.uColor.value.set('#f43f5e'); // Režisérsky ťah: zmena farby na dravú červenú
-            }
-        }, 16);
-    });
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    run();
+    animate();
 </script>
 </body>
 </html>
