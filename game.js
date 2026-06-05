@@ -39,12 +39,15 @@ const game = {
     },
 
     animate() {
-        // Tu sme opravili to nešťastné veľké G na malé g!
         requestAnimationFrame(() => game.animate());
 
-        // Aktualizácia hráča každú snímku
+        // AKTUALIZÁCIA MODULOV
         if (typeof Player !== 'undefined' && Player.update) {
-            Player.update();
+            Player.update(); // Pohyb a pulzovanie hráča
+        }
+
+        if (typeof Entities !== 'undefined' && Entities.update) {
+            Entities.update(); // Pohyb potravy a kontrola jedenia
         }
         
         // Vykreslenie scény
