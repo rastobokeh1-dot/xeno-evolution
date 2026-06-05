@@ -10,9 +10,12 @@ window.Entities = {
     spawnRadius: 25,
     despawnRadius: 35,
 
-    init() {
+   init() {
         for (let i = 0; i < this.maxOrbs; i++) this.spawnOrb(0, 0);
         for (let i = 0; i < this.maxTraps; i++) this.spawnTrap();
+        
+        // ZAVOLÁME TO TU, HNEĎ PRI ŠTARTU
+        this.addAtmosphere(); 
     },
 
     spawnTrap() {
