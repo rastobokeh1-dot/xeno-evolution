@@ -1,7 +1,10 @@
-console.log("🧫 Modul PLAYER: Evolučná DNA pripravená.");
+console.log("🧫 Modul PLAYER: Spúšťam ultra-organickú evolučnú simuláciu.");
 
 window.Player = {
     mesh: null,
+    coreMesh: null,       // 🌌 Vnútorné biochemické jadro
+    membraneMesh: null,   // 🌌 Vonkajšia pulzujúca membrána
+    originalVertices: [], // 🧬 Pamäť pre organickú deformáciu
     posX: 0,
     posY: 0,
     velocityX: 0,
@@ -17,23 +20,52 @@ window.Player = {
     },
 
     init() {
-        console.log("🧫 Vstrekujem evolučnú bunku...");
+        console.log("🧫 Injektujem bio-organické tkanivo...");
 
+        // Použijeme vysokodetailnú geometriu (64 segmentov), aby bolo vlnenie dokonale plynulé
         const geometry = new THREE.IcosahedronGeometry(1.2, 4);
-        const material = new THREE.MeshPhongMaterial({ 
+        
+        // Uložíme si pôvodné pozície bodov pre výpočet tekutých vĺn
+        const posAttr = geometry.attributes.position;
+        this.originalVertices = [];
+        for (let i = 0; i < posAttr.count; i++) {
+            this.originalVertices.push(new THREE.Vector3(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)));
+        }
+
+        // 1. MATERIÁL PRE VNÚTORNÉ JADRO (Hutná bio-hmota)
+        const coreMat = new THREE.MeshPhongMaterial({ 
+            color: 0x0ea5e9, 
+            emissive: 0x0369a1, 
+            emissiveIntensity: 0.8,
+            shininess: 100,
+            flatShading: false
+        });
+        this.coreMesh = new THREE.Mesh(geometry, coreMat);
+        this.coreMesh.scale.setScalar(0.85); // Jadro je o niečo menšie
+
+        // 2. MATERIÁL PRE VONKAJŠIU MEMBRÁNU (Tekutý sklenený obal)
+        const membraneMat = new THREE.MeshPhongMaterial({ 
             color: 0x38bdf8, 
             emissive: 0x0ea5e9, 
-            emissiveIntensity: 0.5,
-            shininess: 80,
+            emissiveIntensity: 0.3,
+            shininess: 30,
             transparent: true,
-            opacity: 0.85
+            opacity: 0.45,
+            wireframe: false // Ak by si chcel digitálny vzhľad, prepni na true
         });
+        // Pre vonkajšiu membránu vytvoríme klon geometrie
+        this.membraneMesh = new THREE.Mesh(geometry.clone(), membraneMat);
 
-        this.mesh = new THREE.Mesh(geometry, material);
+        // Spojíme jadro a membránu do jedného hlavného objektu
+        this.mesh = new THREE.Group();
+        this.mesh.add(this.coreMesh);
+        this.mesh.add(this.membraneMesh);
+        
         scene.add(this.mesh);
 
         this.createCellLabel();
 
+        // Ovládanie
         window.addEventListener("touchmove", (e) => {
             if (e.cancelable) e.preventDefault();
             this.calculateDirection(e.touches[0].clientX, e.touches[0].clientY);
@@ -65,24 +97,24 @@ window.Player = {
         const label = document.createElement("div");
         label.id = "cell-label";
         
-        // 🎨 VIZUÁLNY UPGRADE TEXTU (Glassmorphism)
         label.style.position = "absolute";
         label.style.color = "#ffffff";
         label.style.fontFamily = "'Courier New', monospace";
-        label.style.fontSize = "12px";
+        label.style.fontSize = "11px";
         label.style.fontWeight = "bold";
-        label.style.background = "rgba(15, 23, 42, 0.6)"; // Tmavé polopriehľadné pozadie
-        label.style.backdropFilter = "blur(4px)"; // Rozostrenie pozadia pod textom (ako iOS)
-        label.style.border = "1px solid rgba(56, 189, 248, 0.4)"; // Jemný svietiaci okraj
-        label.style.padding = "4px 10px";
-        label.style.borderRadius = "12px";
-        label.style.boxShadow = "0 4px 12px rgba(0,0,0,0.5)";
+        label.style.letterSpacing = "1px";
+        label.style.background = "rgba(8, 47, 73, 0.5)"; 
+        label.style.backdropFilter = "blur(6px)"; 
+        label.style.border = "1px solid rgba(56, 189, 248, 0.3)"; 
+        label.style.padding = "6px 12px";
+        label.style.borderRadius = "4px"; // Ostré laboratórne rohy vyzerajú dospelemie ako oblé guličky
+        label.style.boxShadow = "0 0 15px rgba(14, 165, 233, 0.2)";
         label.style.pointerEvents = "none";
         label.style.textAlign = "center";
         label.style.zIndex = "99999";
         
-        label.innerHTML = `<div id="cell-main-name" style="color: #38bdf8; text-shadow: 0 0 5px #0ea5e9;">${this.dna.name}</div>
-                           <div id="cell-sub-title" style="font-size:9px; color:#94a3b8; font-style:italic; margin-top: 2px;">${this.dna.title}</div>`;
+        label.innerHTML = `<div id="cell-main-name" style="color: #38bdf8; text-shadow: 0 0 8px #0ea5e9;">${this.dna.name}</div>
+                           <div id="cell-sub-title" style="font-size:8px; color:#64748b; margin-top: 3px; text-transform: uppercase;">${this.dna.title}</div>`;
         
         document.body.appendChild(label);
     },
@@ -103,46 +135,51 @@ window.Player = {
     mutate(type) {
         this.dna.level++;
         
-        let targetColor = 0x38bdf8; 
-        let targetEmissive = 0x0ea5e9;
-        let borderColor = "rgba(56, 189, 248, 0.4)";
+        let coreColor = 0x0ea5e9, coreEmis = 0x0369a1;
+        let membColor = 0x38bdf8, membEmis = 0x0ea5e9;
+        let borderColor = "rgba(56, 189, 248, 0.3)";
 
         if (type === "VELOCIS") {
             this.dna.speedPoints++;
             this.speed += 0.008; 
-            targetColor = 0xa855f7; 
-            targetEmissive = 0x7e22ce;
+            coreColor = 0x7e22ce; coreEmis = 0x4c1d95;
+            membColor = 0xc084fc; membEmis = 0xa855f7;
             borderColor = "rgba(168, 85, 247, 0.4)";
         } else if (type === "TOXIC") {
             this.dna.toxicPoints++;
-            targetColor = 0xef4444; 
-            targetEmissive = 0x991b1b;
+            coreColor = 0xb91c1c; coreEmis = 0x7f1d1d;
+            membColor = 0xfca5a5; membEmis = 0xef4444;
             borderColor = "rgba(239, 68, 68, 0.4)";
         }
 
-        if (this.mesh && this.mesh.material) {
-            this.mesh.material.color.setHex(targetColor);
-            this.mesh.material.emissive.setHex(targetEmissive);
+        if (this.coreMesh && this.membraneMesh) {
+            this.coreMesh.material.color.setHex(coreColor);
+            this.coreMesh.material.emissive.setHex(coreEmis);
+            this.membraneMesh.material.color.setHex(membColor);
+            this.membraneMesh.material.emissive.setHex(membEmis);
         }
 
         const lbl = document.getElementById("cell-label");
         const mainName = document.getElementById("cell-main-name");
         const subTitle = document.getElementById("cell-sub-title");
 
-        if (lbl) lbl.style.border = `1px solid ${borderColor}`;
+        if (lbl) {
+            lbl.style.border = `1px solid ${borderColor}`;
+            lbl.style.boxShadow = `0 0 15px ${borderColor}`;
+        }
 
         if (this.dna.speedPoints > this.dna.toxicPoints) {
-            this.dna.name = `Xeno-Velocis v${this.dna.level}`;
-            this.dna.title = `⚡ Bičíkový synapsor (Gen: ${this.dna.speedPoints})`;
-            if (mainName) { mainName.style.color = "#a855f7"; mainName.style.textShadow = "0 0 5px #7e22ce"; }
+            this.dna.name = `XENO-VELOCIS v${this.dna.level}`;
+            this.dna.title = `⚡ SYNAPSOR [GEN: ${this.dna.speedPoints}]`;
+            if (mainName) { mainName.style.color = "#c084fc"; mainName.style.textShadow = "0 0 8px #a855f7"; }
         } else if (this.dna.toxicPoints > this.dna.speedPoints) {
-            this.dna.name = `Bio-Toxiferum Alpha`;
-            this.dna.title = `🧪 Kyselinový mutant (Gen: ${this.dna.toxicPoints})`;
-            if (mainName) { mainName.style.color = "#ef4444"; mainName.style.textShadow = "0 0 5px #991b1b"; }
+            this.dna.name = `BIO-TOXIFERUM MATER`;
+            this.dna.title = `🧪 MUTANT [GEN: ${this.dna.toxicPoints}]`;
+            if (mainName) { mainName.style.color = "#fca5a5"; mainName.style.textShadow = "0 0 8px #ef4444"; }
         } else {
-            this.dna.name = `Chimera Hybridis`;
-            this.dna.title = `🧬 Stabilizovaný hybrid (Evo: ${this.dna.level})`;
-            if (mainName) { mainName.style.color = "#38bdf8"; mainName.style.textShadow = "0 0 5px #0ea5e9"; }
+            this.dna.name = `CHIMERA HYBRIDIS`;
+            this.dna.title = `🧬 HYBRID [EVO: ${this.dna.level}]`;
+            if (mainName) { mainName.style.color = "#38bdf8"; mainName.style.textShadow = "0 0 8px #0ea5e9"; }
         }
 
         if (mainName) mainName.innerText = this.dna.name;
@@ -154,24 +191,52 @@ window.Player = {
 
         this.posX += this.velocityX;
         this.posY += this.velocityY;
-
         this.mesh.position.set(this.posX, this.posY, 0);
 
+        // 🧬 ULTRA-GRAFIKA: ORGANICKÁ DEFORMÁCIA (PRELIEVANIE BUNKAMI)
+        const time = Date.now() * 0.0025;
+        
+        // Deformujeme jadro
+        const corePosAttr = this.coreMesh.geometry.attributes.position;
+        for (let i = 0; i < corePosAttr.count; i++) {
+            const orig = this.originalVertices[i];
+            
+            // Komplexné trojrozmerné vlnenie (sinusoidy naprieč osami X, Y, Z)
+            const wave = Math.sin(orig.x * 2.5 + time) * 0.08 + 
+                         Math.cos(orig.y * 2.0 + time) * 0.08 + 
+                         Math.sin(orig.z * 3.0 + time * 0.5) * 0.04;
+            
+            // Posunieme bod v smere jeho normály (smerom von/dnu)
+            corePosAttr.setXYZ(i, orig.x + wave, orig.y + wave, orig.z + wave);
+        }
+        corePosAttr.needsUpdate = true;
+
+        // Deformujeme membránu (s miernym oneskorením a inou frekvenciou, aby sa prelievali cez seba)
+        const membPosAttr = this.membraneMesh.geometry.attributes.position;
+        for (let i = 0; i < membPosAttr.count; i++) {
+            const orig = this.originalVertices[i];
+            const wave = Math.sin(orig.y * 3.0 - time) * 0.12 + 
+                         Math.cos(orig.z * 1.5 + time) * 0.06;
+            
+            membPosAttr.setXYZ(i, orig.x + wave, orig.y + wave, orig.z + wave);
+        }
+        membPosAttr.needsUpdate = true;
+
+        // Pomalá organická rotácia oboch vrstiev proti sebe
+        this.coreMesh.rotation.y += 0.003;
+        this.membraneMesh.rotation.y -= 0.001;
+        this.membraneMesh.rotation.x += 0.002;
+
+        // UI Label sledovanie
         const label = document.getElementById("cell-label");
         if (label && typeof camera !== 'undefined') {
-            const tempV = new THREE.Vector3(this.posX, this.posY + 2.0, 0); // Text sme dali ešte o kúsok vyššie
+            const tempV = new THREE.Vector3(this.posX, this.posY + 2.2, 0);
             tempV.project(camera);
-            
             const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
             const y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
-            
             label.style.left = Math.round(x) + "px";
             label.style.top = Math.round(y) + "px";
             label.style.transform = "translate(-50%, -50%)";
         }
-
-        const time = Date.now() * 0.004;
-        this.mesh.scale.setScalar(1 + Math.sin(time) * 0.04);
-        this.mesh.rotation.y += 0.005;
     }
 };
