@@ -1,42 +1,46 @@
-console.log("🌌 Modul WORLD: Seed Engine pripravený.");
-
-const World = {
-    currentSeed: 84920, // Tvoj unikátny seed sveta. Zmenou tohto čísla sa kompletne zmení celý vesmír!
-    stars: [],
-
-    // Matematická funkcia na generovanie pseudonáhodných čísel podľa seedu
-    seededRandom(seed) {
-        const x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-    },
+window.World = {
+    backgroundParticles: null,
 
     init() {
-        console.log(`🌌 Generujem procedurálny svet pre SEED: ${this.currentSeed}`);
+        console.log("🌍 Modul WORLD: Vytváram mikroskopický oceán...");
         
-        // Vygenerujeme hviezdne pozadie stabilne naviazané na náš seed
-        const starGeometry = new THREE.SphereGeometry(0.04, 4, 4);
-        const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+        // Vytvoríme 2000 mikro-častíc (planktón / organický prach)
+        const particleCount = 2000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
 
-        let localSeed = this.currentSeed;
-        for (let i = 0; i < 300; i++) {
-            const star = new THREE.Mesh(starGeometry, starMaterial);
+        for (let i = 0; i < particleCount; i++) {
+            // Rozptýlime ich po obrovskej ploche, ale zatlačíme ich do hĺbky (os Z)
+            positions[i * 3] = (Math.random() - 0.5) * 200;      // X (šírka)
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 200;  // Y (výška)
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 80 - 20; // Z (hĺbka vzadu)
             
-            // Súradnice sú vypočítané cez náš seed, takže hviezdy budú vždy na rovnakom mieste pre daný seed
-            const rx = this.seededRandom(localSeed++) * 200 - 100;
-            const ry = this.seededRandom(localSeed++) * 120 - 60;
-            const rz = this.seededRandom(localSeed++) * 40 - 30;
-            
-            star.position.set(rx, ry, rz);
-            scene.add(star);
-            this.stars.push(star);
+            // Náhodná veľkosť častíc pre ilúziu perspektívy
+            sizes[i] = Math.random() * 0.5;
         }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        // Materiál pre hlbinný planktón
+        const material = new THREE.PointsMaterial({
+            color: 0x0284c7, // Tmavšia modrá, aby neťahala oči
+            size: 0.2,
+            transparent: true,
+            opacity: 0.4,
+            blending: THREE.AdditiveBlending // Svietiaci efekt pri prekrytí
+        });
+
+        this.backgroundParticles = new THREE.Points(geometry, material);
+        scene.add(this.backgroundParticles);
     },
 
-    // Funkcia, ktorá povie, aký bióm sa nachádza na daných súradniciach v nekonečne
-    getBiomeAt(x, y) {
-        const value = this.seededRandom(this.currentSeed + Math.floor(x/10) + Math.floor(y/10));
-        if (value < 0.3) return "DEFAULT";  // Zelená potrava
-        if (value < 0.6) return "VELOCIS";  // Fialové bunky (Rýchlosť)
-        return "TOXIC";                     // Červené/Zelené bunky (Agresivita)
+    update() {
+        if (!this.backgroundParticles) return;
+        
+        // Celý oceán sa jemne a pomaly otáča, čo vytvára organický prúd vody
+        this.backgroundParticles.rotation.z += 0.0003;
+        this.backgroundParticles.rotation.x += 0.0001;
     }
 };
