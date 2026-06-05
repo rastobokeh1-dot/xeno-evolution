@@ -10,7 +10,6 @@ const game = {
         scene.fog = new THREE.FogExp2(0x010409, 0.015);
 
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // Kamera začína nad stredom sveta
         camera.position.set(0, 0, 15);
 
         renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -25,6 +24,7 @@ const game = {
         pointLight.position.set(5, 5, 10);
         scene.add(pointLight);
 
+        // Naštartovanie submodulov
         if (typeof World !== 'undefined' && World.init) World.init();
         if (typeof Player !== 'undefined' && Player.init) Player.init();
         if (typeof Entities !== 'undefined' && Entities.init) Entities.init();
@@ -35,7 +35,7 @@ const game = {
     animate() {
         requestAnimationFrame(() => game.animate());
 
-        // 1. Aktualizácia pohybov
+        // Aktualizácia hráča a potravy
         if (typeof Player !== 'undefined' && Player.update) {
             Player.update();
         }
@@ -44,9 +44,8 @@ const game = {
             Entities.update();
         }
 
-        // 2. REŽISÉRSKY TRÍK: Kamera plynule nasleduje reálnu pozíciu hráča v nekonečne
-        if (Player.mesh) {
-            // Kamera sa plynule (lerp) posúva nad hráča na X a Y osi, ale drží si výšku Z = 15
+        // Sledovanie kamery za bunkou
+        if (typeof Player !== 'undefined' && Player.mesh) {
             camera.position.x += (Player.posX - camera.position.x) * 0.05;
             camera.position.y += (Player.posY - camera.position.y) * 0.05;
         }
