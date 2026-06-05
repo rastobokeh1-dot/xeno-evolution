@@ -8,14 +8,12 @@ const Player = {
     velocityY: 0,
     speed: 0.15,
 
-    // DNA štatistiky pre evolúciu
     dna: {
         name: "Amoeba Primordialis",
         title: "Pasívny mikroorganizmus",
         level: 0,
         speedPoints: 0,
-        toxicPoints: 0,
-        predatorPoints: 0
+        toxicPoints: 0
     },
 
     init() {
@@ -34,10 +32,10 @@ const Player = {
         this.mesh = new THREE.Mesh(geometry, material);
         scene.add(this.mesh);
 
-        // Vytvoríme textový štítok v HTML pre názov bunky
+        // Vytvorenie HTML štítku nad bunkou
         this.createCellLabel();
 
-        // Ovládanie
+        // Ovládanie pre iPhone (Touch)
         window.addEventListener("touchmove", (e) => {
             if (e.cancelable) e.preventDefault();
             this.calculateDirection(e.touches[0].clientX, e.touches[0].clientY);
@@ -52,14 +50,21 @@ const Player = {
             this.velocityX = 0;
             this.velocityY = 0;
         });
+
+        // Ovládanie pre PC (Myš - pri držaní kliku)
+        window.addEventListener("mousemove", (e) => {
+            if (e.buttons === 1) this.calculateDirection(e.clientX, e.clientY);
+        });
+        window.addEventListener("mouseup", () => {
+            this.velocityX = 0;
+            this.velocityY = 0;
+        });
     },
 
     createCellLabel() {
-        // Ak už štítok existuje, zmažeme ho
         const oldLabel = document.getElementById("cell-label");
         if (oldLabel) oldLabel.remove();
 
-        // Vytvoríme nový štítok, ktorý bude lietať nad bunkou
         const label = document.createElement("div");
         label.id = "cell-label";
         label.style.position = "absolute";
@@ -70,6 +75,7 @@ const Player = {
         label.style.textShadow = "0 0 8px #0ea5e9";
         label.style.pointerEvents = "none";
         label.style.textAlign = "center";
+        label.style.zIndex = "1000";
         
         label.innerHTML = `<div id="cell-main-name">${this.dna.name}</div><div id="cell-sub-title" style="font-size:8px; color:#64748b; font-style:italic;">${this.dna.title}</div>`;
         
@@ -83,66 +89,75 @@ const Player = {
         const dirY = -(clientY - centerY);
 
         const distance = Math.sqrt(dirX * dirX + dirY * dirY);
-        if (distance > 10) {
+        if (distance > 15) { // Mŕtva zóna v strede, aby bunka pri statickom dotyku netrhala
             this.velocityX = (dirX / distance) * this.speed;
             this.velocityY = (dirY / distance) * this.speed;
         }
     },
 
-    // Funkcia, ktorú zavoláme z entities.js, keď zožerieme mutovanú bunku
     mutate(type) {
         this.dna.level++;
         
         if (type === "VELOCIS") {
             this.dna.speedPoints++;
             this.speed += 0.01;
-            this.mesh.material.color.setHex(0xa855f7); // Zmena farby na fialovú
-            this.mesh.material.emissive.setHex(0x7e22ce);
+            if (this.mesh) {
+                this.mesh.material.color.setHex(0xa855f7);
+                this.mesh.material.emissive.setHex(0x7e22ce);
+            }
         } else if (type === "TOXIC") {
             this.dna.toxicPoints++;
-            this.mesh.material.color.setHex(0x22c55e); // Zmena farby na toxickú zelenú
-            this.mesh.material.emissive.setHex(0x15803d);
+            if (this.mesh) {
+                this.mesh.material.color.setHex(0xef4444);
+                this.mesh.material.emissive.setHex(0x991b1b);
+            }
         }
 
-        // KREATÍVNA AI DETEKCIA EVOLÚCIE: Dynamicky meníme názvy podľa bodov
+        // AI Výber názvu podľa evolučnej vetvy
         if (this.dna.speedPoints > this.dna.toxicPoints) {
             this.dna.name = `Xeno-Velocis Mk.${this.dna.level}`;
             this.dna.title = "⚡ Bičíkový synapsor";
-            document.getElementById("cell-label").style.color = "#a855f7";
+            const lbl = document.getElementById("cell-label");
+            if (lbl) lbl.style.color = "#a855f7";
         } else {
             this.dna.name = `Bio-Toxiferum Alpha`;
             this.dna.title = "🧪 Kyselinový mutant";
-            document.getElementById("cell-label").style.color = "#22c55e";
+            const lbl = document.getElementById("cell-label");
+            if (lbl) lbl.style.color = "#ef4444";
         }
 
-        // Aktualizujeme text na obrazovke
-        document.getElementById("cell-main-name").innerText = this.dna.name;
-        document.getElementById("cell-sub-title").innerText = this.dna.title;
+        // Bezpečný zápis do HTML
+        const mainName = document.getElementById("cell-main-name");
+        const subTitle = document.getElementById("cell-sub-title");
+        if (mainName) mainName.innerText = this.dna.name;
+        if (subTitle) subTitle.innerText = this.dna.title;
     },
 
     update() {
         if (!this.mesh) return;
 
+        // Pripočítanie rýchlosti k pozícii
         this.posX += this.velocityX;
         this.posY += this.velocityY;
 
+        // Aktualizácia 3D modelu
         this.mesh.position.set(this.posX, this.posY, 0);
 
-        // Prepočet 3D pozície bunky na 2D pixely na displeji iPhonu, aby štítok lietal presne nad ňou
+        // Prepočet 3D pozície na 2D pixely pre štítok nad bunkou
         const label = document.getElementById("cell-label");
-        if (label) {
-            const tempV = new THREE.Vector3(this.posX, this.posY + 1.8, 0);
+        if (label && camera) {
+            const tempV = new THREE.Vector3(this.posX, this.posY + 1.6, 0);
             tempV.project(camera);
             
-            // Prepočet na pixely obrazovky
             const x = (tempV.x * .5 + .5) * window.innerWidth;
             const y = (tempV.y * -.5 + .5) * window.innerHeight;
             
             label.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
         }
 
+        // Jemné dýchanie bunky
         const time = Date.now() * 0.004;
-        this.mesh.scale.setScalar(1 + Math.sin(time) * 0.05);
+        this.mesh.scale.setScalar(1 + Math.sin(time) * 0.04);
         this.mesh.rotation.y += 0.005;
     }
 };
