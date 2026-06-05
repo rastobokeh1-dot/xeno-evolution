@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xeno Evolution v3 ULTIMATE</title>
+<title>Xeno Evolution v4 LIVING CONTROL</title>
 
 <style>
 body {
     margin:0;
     overflow:hidden;
-    background: radial-gradient(circle at center, #050814, #000);
+    background: radial-gradient(circle at center, #050817, #000);
 }
 
 #ui {
@@ -19,7 +19,6 @@ body {
     color:white;
     font-family:system-ui;
     z-index:10;
-    font-size:14px;
 }
 
 .bar {
@@ -35,27 +34,17 @@ body {
     height:100%;
     width:0%;
     background:linear-gradient(90deg,#22c55e,#38bdf8);
-    transition: width 0.2s;
+    transition: width 0.15s;
 }
 
-/* evolution panel */
-#panel {
-    position:fixed;
-    bottom:20px;
-    left:50%;
-    transform:translateX(-50%);
-    background:#0b1220;
-    padding:12px;
-    border-radius:12px;
-    color:white;
-    display:none;
-    gap:10px;
+.pulse {
+    animation: pulse 0.25s ease;
 }
-.btn {
-    background:#1f2937;
-    padding:8px 12px;
-    border-radius:8px;
-    cursor:pointer;
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
 }
 </style>
 
@@ -65,14 +54,8 @@ body {
 <body>
 
 <div id="ui">
-🧬 Biomasa: <span id="bio">0</span> | DNA: <span id="dna">0</span>
+🧬 Biomasa: <span id="bio">0</span>
 <div class="bar"><div id="bar" class="fill"></div></div>
-</div>
-
-<div id="panel">
-<div class="btn" onclick="upgrade('speed')">SPEED</div>
-<div class="btn" onclick="upgrade('magnet')">MAGNET</div>
-<div class="btn" onclick="upgrade('size')">SIZE</div>
 </div>
 
 <script>
@@ -81,18 +64,18 @@ body {
 // WORLD
 // ======================
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x00040f, 10, 60);
+scene.fog = new THREE.Fog(0x00040f, 5, 60);
 
 // hviezdy
-for(let i=0;i<300;i++){
+for(let i=0;i<250;i++){
     const star = new THREE.Mesh(
         new THREE.SphereGeometry(0.02,4,4),
         new THREE.MeshBasicMaterial({ color:0xffffff })
     );
     star.position.set(
-        (Math.random()-0.5)*80,
-        (Math.random()-0.5)*50,
-        (Math.random()-0.5)*40
+        (Math.random()-0.5)*70,
+        (Math.random()-0.5)*40,
+        (Math.random()-0.5)*30
     );
     scene.add(star);
 }
@@ -113,28 +96,30 @@ light.position.set(5,5,10);
 scene.add(light);
 
 // ======================
-// PLAYER
+// PLAYER (živý objekt)
 // ======================
 const player = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 24, 24),
+    new THREE.SphereGeometry(1, 28, 28),
     new THREE.MeshStandardMaterial({
         color:0x38bdf8,
         emissive:0x0ea5e9,
-        emissiveIntensity:0.5,
-        roughness:0.3
+        emissiveIntensity:0.6,
+        roughness:0.25
     })
 );
 scene.add(player);
 
+// fyzika (INERCIA)
+let velocity = new THREE.Vector3();
+
 // ======================
-// INPUT (smooth joystick)
+// TOUCH CONTROL (gravitačný štýl)
 // ======================
-let tx = 0;
-let ty = 0;
+let target = new THREE.Vector3();
 
 function setInput(x,y){
-    tx = (x / window.innerWidth) * 2 - 1;
-    ty = -(y / window.innerHeight) * 2 + 1;
+    target.x = (x / window.innerWidth) * 2 - 1;
+    target.y = -(y / window.innerHeight) * 2 + 1;
 }
 
 window.addEventListener("touchmove",e=>{
@@ -161,8 +146,8 @@ function spawnOrb(){
     );
 
     orb.position.set(
-        (Math.random()-0.5)*40,
-        (Math.random()-0.5)*25,
+        (Math.random()-0.5)*35,
+        (Math.random()-0.5)*22,
         0
     );
 
@@ -170,37 +155,15 @@ function spawnOrb(){
     orbs.push(orb);
 }
 
-for(let i=0;i<80;i++) spawnOrb();
+for(let i=0;i<70;i++) spawnOrb();
 
 // ======================
 // GAME STATE
 // ======================
 let biomass = 0;
-let dna = 0;
-
-let speed = 1;
-let magnet = 1;
-let size = 1;
 
 const bio = document.getElementById("bio");
-const dnaUI = document.getElementById("dna");
 const bar = document.getElementById("bar");
-const panel = document.getElementById("panel");
-
-// ======================
-// UPGRADE SYSTEM
-// ======================
-window.upgrade = function(type){
-    if(dna <= 0) return;
-
-    dna--;
-
-    if(type === "speed") speed += 0.15;
-    if(type === "magnet") magnet += 0.3;
-    if(type === "size") player.scale.multiplyScalar(1.08);
-
-    panel.style.display = "none";
-}
 
 // ======================
 // LOOP
@@ -208,18 +171,37 @@ window.upgrade = function(type){
 function animate(){
     requestAnimationFrame(animate);
 
-    // movement (smooth + weighted)
-    player.position.x += (tx * 10 - player.position.x) * 0.05 * speed;
-    player.position.y += (ty * 7 - player.position.y) * 0.05 * speed;
+    // ======================
+    // LIVING MOVEMENT SYSTEM
+    // ======================
 
-    // camera cinematic follow
-    camera.position.x += (player.position.x - camera.position.x) * 0.04;
-    camera.position.y += (player.position.y - camera.position.y) * 0.04;
+    // smer = “gravitačná sila”
+    let force = new THREE.Vector3(
+        target.x * 10 - player.position.x,
+        target.y * 7 - player.position.y,
+        0
+    );
 
-    camera.position.z = 16 - biomass * 0.02; // zoom progression
+    velocity.add(force.multiplyScalar(0.02));
+    velocity.multiplyScalar(0.88); // friction
+
+    player.position.add(velocity);
+
+    // jemné pulzovanie života
+    player.scale.setScalar(1 + Math.sin(Date.now()*0.004)*0.05);
+
+    // ======================
+    // CAMERA DRIFT (cinematic feel)
+    // ======================
+    camera.position.x += (player.position.x - camera.position.x) * 0.03;
+    camera.position.y += (player.position.y - camera.position.y) * 0.03;
+    camera.position.z = 16 + Math.sin(Date.now()*0.001)*0.5;
+
     camera.lookAt(player.position);
 
-    // orbs system
+    // ======================
+    // ORBS INTERACTION (sila + absorbcia)
+    // ======================
     for(let i=orbs.length-1;i>=0;i--){
         const o = orbs[i];
 
@@ -227,21 +209,21 @@ function animate(){
         const dy = player.position.y - o.position.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
 
-        if(dist < 4 * magnet){
-            o.position.x += dx * 0.01 * magnet;
-            o.position.y += dy * 0.01 * magnet;
+        // orb reaguje na tvoju silu
+        if(dist < 5){
+            o.position.x += dx * 0.02;
+            o.position.y += dy * 0.02;
         }
 
+        // absorbcia (nie “pickup”, ale “zjednotenie”)
         if(dist < 0.8){
             scene.remove(o);
             orbs.splice(i,1);
 
             biomass++;
 
-            if(biomass % 10 === 0){
-                dna++;
-                panel.style.display = "flex";
-            }
+            // vizuálny pulse
+            player.classList && player.classList.add("pulse");
 
             player.scale.multiplyScalar(1.015);
 
@@ -251,7 +233,6 @@ function animate(){
 
     // UI
     bio.innerText = biomass;
-    dnaUI.innerText = dna;
     bar.style.width = Math.min(biomass*1.5,100) + "%";
 
     renderer.render(scene,camera);
