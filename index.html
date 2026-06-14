@@ -1,26 +1,3014 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-    <meta charset="UTF-8">
-    <title>XENO-GENESIS</title>
-    <link rel="stylesheet" href="assets/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>GENESIS 7 — Omega Singularity</title>
+<style>
+:root{
+--c0:#22d3ee;--c1:#a855f7;--c2:#f59e0b;--c3:#ef4444;--c4:#fbbf24;--c5:#22c55e;
+--glass:rgba(3,6,18,.85);--gb:rgba(255,255,255,.1);
+--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;
+font-family:'SF Pro Display','Helvetica Neue',system-ui,sans-serif;
+color:#fff;user-select:none;-webkit-user-select:none;-webkit-font-smoothing:antialiased;}
+
+/* ── CANVAS STACK ── */
+#glc,#bloom,#pc,#vig,#scanlines,#chroma{position:fixed;inset:0;pointer-events:none;}
+#glc{z-index:1;width:100%!important;height:100%!important;}
+#bloom{z-index:2;opacity:.55;mix-blend-mode:screen;}
+#vig{z-index:3;background:radial-gradient(ellipse 75% 75% at 50% 50%,transparent 28%,rgba(0,0,6,.97)100%);}
+#scanlines{z-index:4;opacity:.022;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.6)2px,rgba(0,0,0,.6)4px);}
+#chroma{z-index:5;background:transparent;pointer-events:none;}
+#pc{z-index:6;pointer-events:none;}
+
+/* ── HUD ── */
+#hud{position:fixed;inset:0;z-index:10;pointer-events:none;display:none;}
+.glass{background:var(--glass);border:1px solid var(--gb);
+backdrop-filter:blur(26px) saturate(160%);-webkit-backdrop-filter:blur(26px) saturate(160%);}
+
+/* ── TOP STATS ── */
+#topbar{
+position:absolute;top:calc(var(--sat)+8px);
+left:50%;transform:translateX(-50%);
+width:min(97vw,590px);pointer-events:all;z-index:20;
+border-radius:24px;padding:11px 16px;
+display:grid;grid-template-columns:repeat(4,1fr);gap:7px;text-align:center;
+box-shadow:0 8px 32px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.09);
+}
+.st{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.sl{font-size:clamp(7px,1.8vw,9px);letter-spacing:2.5px;color:rgba(255,255,255,.4);font-weight:800;text-transform:uppercase;}
+.sv{font-size:clamp(11px,3.1vw,14px);font-weight:900;letter-spacing:.3px;
+text-shadow:0 0 14px currentColor,0 2px 4px rgba(0,0,0,.9);
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;}
+.sb{width:100%;height:3px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin-top:2px;}
+.sf{height:100%;border-radius:3px;transition:width .45s cubic-bezier(.4,0,.2,1);}
+
+/* ── MULTIPLIER TICKER (NEW) ── */
+#multiticker{
+position:absolute;top:calc(var(--sat)+76px);right:clamp(8px,2vw,16px);
+font-size:clamp(9px,2.2vw,11px);font-weight:900;letter-spacing:1px;
+color:var(--c4);text-shadow:0 0 10px var(--c4);
+background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);
+padding:4px 10px;border-radius:12px;z-index:20;pointer-events:none;display:none;
+}
+
+/* ── STAGE DISPLAY ── */
+#stageinfo{
+position:absolute;top:calc(var(--sat)+88px);
+left:50%;transform:translateX(-50%);
+text-align:center;pointer-events:none;
+width:min(88vw,460px);z-index:11;
+}
+#stageno{font-size:clamp(8px,2.2vw,10px);letter-spacing:5px;color:rgba(255,255,255,.28);font-weight:800;}
+#stagetitle{
+font-size:clamp(22px,7vw,40px);font-weight:900;letter-spacing:4px;margin-top:3px;
+transition:color .9s,text-shadow .9s;
+text-shadow:0 0 50px currentColor,0 0 100px currentColor,0 4px 20px rgba(0,0,0,1);
+}
+#stagedesc{
+font-size:clamp(9px,2.4vw,11px);color:rgba(255,255,255,.4);
+max-width:310px;margin:6px auto 0;line-height:1.65;
+text-shadow:0 2px 10px rgba(0,0,0,1);
+}
+/* DNA + POP mini goals */
+#goalbar{
+display:flex;justify-content:center;gap:12px;margin-top:8px;
+}
+.goalitem{
+font-size:clamp(8px,2vw,10px);color:rgba(255,255,255,.5);font-weight:700;
+background:rgba(0,0,0,.5);padding:3px 10px;border-radius:10px;
+border:1px solid rgba(255,255,255,.1);letter-spacing:.5px;
+}
+.goalitem.done{color:var(--c5);border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.05);}
+
+/* ── COMBO COUNTER (NEW) ── */
+#combo{
+position:absolute;top:calc(var(--sat)+170px);left:50%;transform:translateX(-50%);
+text-align:center;pointer-events:none;z-index:12;display:none;
+animation:comboPop .25s cubic-bezier(.175,.885,.32,1.6) forwards;
+}
+#combonum{font-size:clamp(28px,8vw,52px);font-weight:900;letter-spacing:2px;
+text-shadow:0 0 30px currentColor,0 0 60px currentColor;}
+#combolabel{font-size:clamp(8px,2vw,11px);letter-spacing:4px;opacity:.7;margin-top:-4px;}
+@keyframes comboPop{from{transform:translateX(-50%) scale(.5);opacity:0;}to{transform:translateX(-50%) scale(1);opacity:1;}}
+
+/* ── CORNER BUTTONS ── */
+.cbtn{
+position:absolute;border-radius:16px;
+width:clamp(42px,9vw,52px);height:clamp(42px,9vw,52px);
+display:flex;align-items:center;justify-content:center;
+font-size:clamp(17px,4.5vw,22px);cursor:pointer;pointer-events:all;
+transition:all .22s cubic-bezier(.4,0,.2,1);
+background:rgba(3,6,18,.9);border:1px solid rgba(255,255,255,.14);
+backdrop-filter:blur(14px);z-index:25;
+box-shadow:0 4px 20px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.08);
+}
+#btnset{left:clamp(8px,2vw,16px);top:calc(var(--sat)+8px);}
+#btnset:hover{background:rgba(255,255,255,.11);transform:rotate(-20deg) scale(1.1);}
+#btnupg{right:clamp(8px,2vw,16px);top:calc(var(--sat)+8px);border-color:rgba(168,85,247,.4);}
+#btnupg:hover{background:rgba(168,85,247,.16);box-shadow:0 0 22px rgba(168,85,247,.45);transform:rotate(20deg) scale(1.1);}
+
+/* ── BOTTOM PANEL ── */
+#bottomwrap{
+position:absolute;bottom:calc(var(--sab)+5px);
+left:50%;transform:translateX(-50%);
+width:min(99vw,565px);pointer-events:all;z-index:15;
+display:flex;flex-direction:column;align-items:center;gap:7px;padding:0 4px;
+}
+
+/* ── EVOLVE BUTTON ── */
+#evolvebtn{
+width:100%;display:none;border:none;border-radius:20px;
+padding:clamp(13px,3.5vw,17px) 20px;
+font-family:inherit;font-size:clamp(11px,3vw,14px);font-weight:900;
+letter-spacing:2.5px;text-transform:uppercase;color:#fff;cursor:pointer;
+position:relative;overflow:hidden;
+background:linear-gradient(135deg,#7c3aed,#2563eb,#0891b2);
+animation:evoGlow 2s ease-in-out infinite;
+box-shadow:0 0 0 1px rgba(124,58,237,.4),0 8px 32px rgba(37,99,235,.5);
+}
+#evolvebtn::before{content:'';position:absolute;inset:0;
+background:linear-gradient(135deg,rgba(255,255,255,.22),transparent 55%,rgba(255,255,255,.05));pointer-events:none;}
+#evolvebtn::after{content:'';position:absolute;inset:-1px;border-radius:21px;z-index:-1;
+background:linear-gradient(135deg,#a855f7,#3b82f6,#06b6d4,#ec4899,#a855f7);
+background-size:400%;animation:borderFlow 3.5s linear infinite;}
+@keyframes evoGlow{
+0%,100%{box-shadow:0 0 0 1px rgba(124,58,237,.4),0 8px 32px rgba(37,99,235,.5),0 0 80px rgba(8,145,178,.15);}
+50%{box-shadow:0 0 0 2px rgba(168,85,247,.6),0 12px 44px rgba(37,99,235,.8),0 0 130px rgba(8,145,178,.35),0 0 200px rgba(168,85,247,.1);}
+}
+@keyframes borderFlow{0%{background-position:0%}100%{background-position:400%}}
+
+#ascendbtn{
+width:100%;display:none;border:1px solid rgba(239,68,68,.55);border-radius:20px;
+padding:clamp(13px,3.5vw,17px) 20px;
+font-family:inherit;font-size:clamp(11px,3vw,14px);font-weight:900;
+letter-spacing:2px;color:#fff;cursor:pointer;
+background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(127,29,29,.28));
+animation:dangerPulse 2.5s ease-in-out infinite;
+}
+@keyframes dangerPulse{
+0%,100%{box-shadow:0 0 20px rgba(239,68,68,.3),inset 0 1px 0 rgba(255,255,255,.05);}
+50%{box-shadow:0 0 55px rgba(239,68,68,.65),0 0 100px rgba(239,68,68,.2),inset 0 1px 0 rgba(255,255,255,.08);}
+}
+
+/* ── ACTION GRID ── */
+#actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;}
+.abtn{
+background:rgba(3,6,20,.92);border:1px solid rgba(255,255,255,.11);
+border-radius:17px;padding:clamp(10px,2.8vw,14px) 7px;
+cursor:pointer;font-family:inherit;color:#fff;
+display:flex;flex-direction:column;align-items:center;gap:5px;
+position:relative;overflow:hidden;backdrop-filter:blur(14px);
+transition:transform .14s cubic-bezier(.4,0,.2,1),border-color .14s,box-shadow .14s;
+box-shadow:0 2px 14px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.07);
+}
+.abtn::before{content:'';position:absolute;inset:0;border-radius:17px;
+background:linear-gradient(170deg,rgba(255,255,255,.09) 0%,transparent 55%);pointer-events:none;}
+.abtn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+border-radius:0 0 17px 17px;opacity:0;transition:opacity .2s;}
+.abtn:hover:not(.off)::after{opacity:1;}
+.abtn:active:not(.off){transform:scale(.94);}
+.abtn.off{opacity:.28;cursor:not-allowed;filter:grayscale(70%) brightness(.65);}
+/* COOL-DOWN ripple */
+.abtn .cdbar{position:absolute;bottom:0;left:0;height:2px;background:currentColor;
+width:100%;transform-origin:left;transform:scaleX(0);transition:transform 1s linear;border-radius:0 0 17px 17px;}
+.ai{font-size:clamp(20px,5.5vw,26px);line-height:1;filter:drop-shadow(0 3px 7px rgba(0,0,0,.95));}
+.al{font-size:clamp(9px,2.1vw,11px);font-weight:700;text-align:center;letter-spacing:.3px;line-height:1.2;text-shadow:0 1px 5px #000;}
+.ac{font-size:clamp(7px,1.9vw,10px);font-weight:900;background:rgba(0,0,0,.65);
+padding:2px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);}
+
+/* ── TOASTS ── */
+#toasts{
+position:fixed;
+bottom:calc(var(--sab)+clamp(148px,27vw,188px));
+left:50%;transform:translateX(-50%);
+display:flex;flex-direction:column-reverse;gap:5px;
+z-index:40;pointer-events:none;width:min(93vw,350px);
+}
+.toast{
+background:rgba(3,6,20,.98);border-left:3px solid var(--c0);
+backdrop-filter:blur(16px);padding:9px 14px;border-radius:11px;
+font-size:clamp(10px,2.7vw,12px);font-weight:700;letter-spacing:.3px;
+box-shadow:0 4px 22px rgba(0,0,0,.75);
+animation:tin .28s cubic-bezier(.175,.885,.32,1.3) forwards;
+opacity:0;transform:translateY(14px);text-align:center;
+}
+.toast.tg{border-left-color:var(--c4);background:rgba(22,17,3,.98);}
+.toast.tr{border-left-color:var(--c3);}
+.toast.tp{border-left-color:var(--c1);}
+.toast.ts{border-left-color:var(--c5);}
+@keyframes tin{to{opacity:1;transform:translateY(0);}}
+.toast.tout{animation:tout .3s ease forwards;}
+@keyframes tout{to{opacity:0;transform:translateY(-14px) scale(.9);}}
+
+/* ── FLOATING VFX ── */
+.ftxt{position:fixed;font-size:clamp(13px,3.5vw,18px);font-weight:900;
+pointer-events:none;z-index:60;animation:fup 1s ease-out forwards;
+text-shadow:0 2px 10px rgba(0,0,0,1);}
+@keyframes fup{0%{opacity:1;transform:translateY(0)scale(1);}100%{opacity:0;transform:translateY(-55px)scale(1.4);}}
+.femoji{position:fixed;font-size:clamp(18px,5vw,24px);pointer-events:none;z-index:59;
+animation:fspin 1.3s ease-out forwards;}
+@keyframes fspin{
+0%{opacity:1;transform:translateY(0)rotate(0)scale(.55);}
+50%{transform:translateY(-40px)rotate(220deg)scale(1.2);}
+100%{opacity:0;transform:translateY(-80px)rotate(380deg)scale(.85);}}
+
+/* ── MILESTONE FLASH ── */
+#mflash{position:fixed;inset:0;z-index:80;pointer-events:none;
+background:transparent;transition:background .1s;}
+#mflash.flash{background:rgba(255,255,255,.06);}
+
+/* ── PASSIVE TICK VFX (NEW) ── */
+.ptick{position:fixed;font-size:clamp(9px,2.2vw,11px);font-weight:900;pointer-events:none;
+z-index:38;animation:ptickup .85s ease-out forwards;letter-spacing:.5px;text-shadow:0 1px 4px #000;}
+@keyframes ptickup{0%{opacity:.7;transform:translateY(0);}100%{opacity:0;transform:translateY(-24px);}}
+
+/* ── ACHIEVEMENT POPUP (NEW) ── */
+#achpop{
+position:fixed;top:calc(var(--sat)+68px);right:-420px;
+background:rgba(2,4,18,.98);border:1px solid rgba(251,191,36,.44);
+border-radius:18px;padding:12px 16px;z-index:90;
+width:min(88vw,285px);pointer-events:none;
+box-shadow:0 8px 32px rgba(0,0,0,.85),0 0 30px rgba(251,191,36,.14);
+transition:right .38s cubic-bezier(.175,.885,.32,1.275);
+}
+#achpop.show{right:clamp(8px,2vw,16px);}
+#achpop .atop{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+#achpop .aico{font-size:20px;}
+#achpop .atitle{font-size:clamp(9px,2.2vw,11px);color:var(--c4);font-weight:900;letter-spacing:1px;}
+#achpop .aname{font-size:clamp(12px,3.2vw,14px);font-weight:900;margin-bottom:2px;}
+#achpop .adesc{font-size:clamp(9px,2.2vw,11px);color:rgba(255,255,255,.5);}
+
+/* ── RESEARCH PANEL (NEW) ── */
+#researchwrap{
+position:fixed;left:-115%;top:0;bottom:0;width:min(100%,380px);
+padding:calc(var(--sat)+14px) 15px calc(var(--sab)+14px);
+transition:left .36s cubic-bezier(.175,.885,.32,1.275);
+pointer-events:all;display:flex;flex-direction:column;gap:10px;
+overflow-y:auto;z-index:30;
+background:rgba(1,3,12,.98);border-right:1px solid rgba(34,211,238,.22);
+-webkit-overflow-scrolling:touch;
+}
+#researchwrap::-webkit-scrollbar{width:2px;}
+#researchwrap::-webkit-scrollbar-thumb{background:rgba(34,211,238,.45);border-radius:4px;}
+#researchwrap.open{left:0;box-shadow:14px 0 55px rgba(0,0,0,.95);}
+.resitem{background:rgba(0,0,0,.6);border:1px solid rgba(34,211,238,.2);
+border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:7px;
+transition:border-color .18s,box-shadow .18s;}
+.resitem:hover:not(.reslocked){border-color:rgba(34,211,238,.48);box-shadow:0 0 15px rgba(34,211,238,.1);}
+.resitem.resbought{border-color:rgba(168,85,247,.35);background:rgba(168,85,247,.025);}
+.resitem.reslocked{opacity:.26;filter:grayscale(1);pointer-events:none;}
+.rname{font-size:clamp(11px,3vw,13px);font-weight:900;margin-bottom:2px;}
+.rdesc{font-size:clamp(9px,2.4vw,11px);color:rgba(255,255,255,.45);line-height:1.45;}
+.rbot{display:flex;justify-content:space-between;align-items:center;
+border-top:1px dashed rgba(255,255,255,.07);padding-top:7px;margin-top:2px;}
+.rcost{font-size:10px;color:var(--c0);font-weight:900;
+background:rgba(34,211,238,.07);padding:3px 8px;border-radius:6px;}
+.resbuy{background:rgba(34,211,238,.12);border:1px solid var(--c0);border-radius:7px;
+color:#fff;font-family:inherit;font-size:10px;font-weight:900;
+padding:5px 12px;cursor:pointer;letter-spacing:1px;transition:all .16s;}
+.resbuy:hover:not(:disabled){background:var(--c0);color:#001a1f;box-shadow:0 0 15px rgba(34,211,238,.5);}
+.resbuy:disabled{opacity:.28;cursor:not-allowed;}
+
+/* ── PRESTIGE SHOP BOTTOM SHEET (NEW) ── */
+#prestigeshop{
+position:fixed;bottom:-110%;left:0;right:0;max-height:72vh;
+border-radius:28px 28px 0 0;
+padding:18px 16px calc(var(--sab)+16px);
+transition:bottom .35s cubic-bezier(.175,.885,.32,1.275);
+pointer-events:all;display:flex;flex-direction:column;gap:10px;
+overflow-y:auto;z-index:35;
+background:rgba(1,2,10,.99);
+border-top:1px solid rgba(239,68,68,.28);
+border-left:1px solid rgba(239,68,68,.1);border-right:1px solid rgba(239,68,68,.1);
+-webkit-overflow-scrolling:touch;
+}
+#prestigeshop.open{bottom:0;box-shadow:0 -14px 60px rgba(0,0,0,.95);}
+#prestigeshop::-webkit-scrollbar{width:2px;}
+#prestigeshop::-webkit-scrollbar-thumb{background:rgba(239,68,68,.4);border-radius:4px;}
+.psphdr{display:flex;justify-content:space-between;align-items:center;
+border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:10px;}
+.psptitle{font-size:clamp(12px,3.5vw,15px);letter-spacing:2px;color:var(--c3);font-weight:900;}
+.pspgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pspitem{background:rgba(0,0,0,.65);border:1px solid rgba(239,68,68,.2);
+border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;
+align-items:center;text-align:center;transition:border-color .18s;}
+.pspitem:hover:not(.psplocked){border-color:rgba(239,68,68,.5);}
+.pspitem.pspbought{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.03);}
+.pspitem.psplocked{opacity:.25;filter:grayscale(1);}
+.pspico{font-size:24px;}
+.pspname{font-size:clamp(10px,2.6vw,12px);font-weight:900;}
+.pspdesc{font-size:clamp(8px,2vw,10px);color:rgba(255,255,255,.45);line-height:1.4;}
+.pspcost{font-size:10px;color:var(--c3);font-weight:900;
+background:rgba(239,68,68,.08);padding:2px 8px;border-radius:6px;}
+.pspbuy{background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.45);border-radius:8px;
+color:#fff;font-family:inherit;font-size:10px;font-weight:900;
+padding:6px 10px;cursor:pointer;letter-spacing:1px;transition:all .16s;width:100%;}
+.pspbuy:hover:not(:disabled){background:rgba(239,68,68,.4);box-shadow:0 0 14px rgba(239,68,68,.4);}
+.pspbuy:disabled{opacity:.26;cursor:not-allowed;}
+
+/* ── NOTIFY DOT ON UPGRADE BTN (NEW) ── */
+#btnupg.notify::after{content:'';position:absolute;top:6px;right:6px;
+width:8px;height:8px;background:var(--c3);border-radius:50%;
+border:1.5px solid rgba(0,0,0,.5);animation:dotblink 1s ease infinite alternate;}
+#btnupg{position:relative;}
+@keyframes dotblink{from{opacity:.4;}to{opacity:1;}}
+
+/* ── RESEARCH CORNER BUTTON (NEW) ── */
+#btnresearch{
+position:absolute;left:clamp(8px,2vw,16px);top:calc(var(--sat)+68px);
+border-color:rgba(34,211,238,.35);
+}
+#btnresearch:hover{background:rgba(34,211,238,.12);box-shadow:0 0 22px rgba(34,211,238,.38);}
+
+/* ── DNA progress ring GLOW (NEW) ── */
+.rfill{filter:drop-shadow(0 0 5px currentColor);}
+
+/* ── LORE TOOLTIP (NEW) ── */
+#loretip{
+position:fixed;bottom:calc(var(--sab)+clamp(155px,30vw,200px));
+left:50%;transform:translateX(-50%);
+background:rgba(2,4,18,.95);border:1px solid rgba(255,255,255,.1);
+border-radius:14px;padding:9px 14px;
+font-size:clamp(9px,2.3vw,11px);color:rgba(255,255,255,.55);
+max-width:min(88vw,340px);text-align:center;line-height:1.65;
+pointer-events:none;z-index:8;
+animation:lorefade 4s ease-in-out forwards;
+backdrop-filter:blur(10px);
+}
+@keyframes lorefade{0%{opacity:0;}10%{opacity:1;}80%{opacity:1;}100%{opacity:0;}}
+
+/* ── UPGRADES PANEL ── */
+#upgpanel{
+position:fixed;right:-112%;top:0;bottom:0;width:min(100%,380px);
+padding:calc(var(--sat)+14px) 16px calc(var(--sab)+14px);
+transition:right .36s cubic-bezier(.175,.885,.32,1.275);
+pointer-events:all;display:flex;flex-direction:column;gap:11px;
+overflow-y:auto;z-index:30;
+background:rgba(2,4,14,.97);border-left:1px solid rgba(168,85,247,.28);
+-webkit-overflow-scrolling:touch;
+}
+#upgpanel::-webkit-scrollbar{width:2px;}
+#upgpanel::-webkit-scrollbar-thumb{background:var(--c1);border-radius:4px;}
+#upgpanel.open{right:0;box-shadow:-12px 0 55px rgba(0,0,0,.95);}
+.phdr{display:flex;justify-content:space-between;align-items:center;
+border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:12px;}
+.ptitle{font-size:clamp(13px,3.8vw,16px);letter-spacing:2px;color:var(--c1);font-weight:900;}
+.xbtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);
+border-radius:50%;width:32px;height:32px;color:#fff;cursor:pointer;
+font-size:16px;transition:all .2s;display:flex;justify-content:center;align-items:center;}
+.xbtn:hover{background:rgba(239,68,68,.32);transform:rotate(90deg);}
+/* Upgrade tier labels */
+.utier{font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.25);
+text-transform:uppercase;padding:8px 0 4px;font-weight:800;}
+.uitem{background:rgba(0,0,0,.55);border:1px solid rgba(168,85,247,.28);
+border-radius:15px;padding:13px;display:flex;flex-direction:column;gap:8px;
+transition:border-color .2s,box-shadow .2s;}
+.uitem:hover:not(.ulocked){border-color:rgba(168,85,247,.55);box-shadow:0 0 16px rgba(168,85,247,.15);}
+.uitem.ubought{border-color:rgba(34,211,238,.35);background:rgba(34,211,238,.03);}
+.uitem.ulocked{opacity:.32;filter:grayscale(1);}
+.utop{display:flex;gap:10px;align-items:center;}
+.uico{font-size:24px;background:rgba(255,255,255,.04);padding:9px;
+border-radius:10px;border:1px solid rgba(255,255,255,.07);}
+.uname{font-size:clamp(12px,3.2vw,14px);font-weight:900;margin-bottom:3px;}
+.udesc{font-size:clamp(9px,2.5vw,11px);color:rgba(255,255,255,.48);line-height:1.45;}
+.ubot{display:flex;justify-content:space-between;align-items:center;
+margin-top:4px;border-top:1px dashed rgba(255,255,255,.07);padding-top:8px;}
+.ucost{font-size:11px;color:var(--c1);font-weight:900;
+background:rgba(168,85,247,.09);padding:3px 9px;border-radius:7px;}
+.ubuy{background:rgba(168,85,247,.16);border:1px solid var(--c1);border-radius:7px;
+color:#fff;font-family:inherit;font-size:10px;font-weight:900;
+padding:6px 13px;cursor:pointer;letter-spacing:1px;transition:all .18s;}
+.ubuy:hover:not(:disabled){background:var(--c1);color:#000;box-shadow:0 0 14px rgba(168,85,247,.55);}
+.ubuy:disabled{opacity:.32;cursor:not-allowed;}
+
+/* ── SETTINGS MODAL ── */
+#settingsmodal{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:100;
+display:none;align-items:center;justify-content:center;pointer-events:all;
+backdrop-filter:blur(18px);}
+.mbox{background:rgba(3,6,18,.97);border:1px solid rgba(255,255,255,.11);
+border-radius:26px;padding:clamp(18px,5vw,28px);
+width:min(93vw,470px);max-height:90vh;overflow-y:auto;
+display:flex;flex-direction:column;gap:13px;
+box-shadow:0 28px 70px rgba(0,0,0,1),0 0 80px rgba(34,211,238,.04);}
+.mbox h2{font-size:clamp(15px,4.5vw,18px);color:var(--c0);letter-spacing:2px;
+border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:10px;}
+.hintbox{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.09);
+border-radius:11px;padding:14px;font-size:clamp(10px,2.7vw,12px);
+color:rgba(255,255,255,.65);line-height:1.8;}
+.hintbox h3{color:var(--c4);font-size:11px;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;}
+.hintbox ul{padding-left:16px;}
+.hintbox li{margin-bottom:5px;}
+.hi{color:var(--c0);font-weight:800;}
+.sbtn{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.13);
+border-radius:11px;padding:12px;color:#fff;font-family:inherit;
+font-size:clamp(11px,3.2vw,13px);font-weight:700;cursor:pointer;
+transition:all .18s;width:100%;letter-spacing:.5px;}
+.sbtn:hover{background:rgba(255,255,255,.11);transform:translateY(-1px);}
+.sbtn.red{border-color:rgba(239,68,68,.38);color:#ff7070;}
+.sbtn.red:hover{background:rgba(239,68,68,.2);color:#fff;}
+/* Stats section in settings */
+#statsbox{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.09);
+border-radius:11px;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.statrow{display:flex;flex-direction:column;gap:2px;}
+.statrow .sk{font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.35);font-weight:800;text-transform:uppercase;}
+.statrow .sv2{font-size:clamp(11px,3vw,14px);font-weight:900;color:var(--c0);}
+
+/* ── EVENT OVERLAY ── */
+#evoverlay{position:fixed;inset:0;background:rgba(0,0,0,.91);z-index:50;
+display:none;align-items:center;justify-content:center;pointer-events:all;
+backdrop-filter:blur(12px);}
+#evbox{background:rgba(3,6,18,.98);border:1px solid rgba(255,255,255,.18);
+border-radius:26px;padding:clamp(20px,6vw,36px);text-align:center;
+width:min(93vw,440px);
+box-shadow:0 32px 65px rgba(0,0,0,1),0 0 70px rgba(168,85,247,.07);
+transform:scale(.86);opacity:0;transition:all .28s cubic-bezier(.175,.885,.32,1.275);}
+#evoverlay.active #evbox{transform:scale(1);opacity:1;}
+.evico{font-size:clamp(42px,10vw,58px);display:block;margin-bottom:10px;
+filter:drop-shadow(0 0 18px rgba(255,255,255,.32));}
+#evtitle{font-size:clamp(17px,5.5vw,22px);font-weight:900;letter-spacing:1px;margin-bottom:10px;}
+#evdesc{color:rgba(255,255,255,.65);font-size:clamp(11px,3.2vw,13px);line-height:1.75;margin-bottom:22px;}
+.evchoices{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;}
+.evbtn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);
+border-radius:13px;padding:12px 17px;color:#fff;font-family:inherit;
+font-size:clamp(10px,2.8vw,12px);font-weight:700;cursor:pointer;
+transition:all .16s;flex:1;min-width:118px;letter-spacing:.5px;}
+.evbtn:hover{background:rgba(255,255,255,.14);border-color:#fff;transform:translateY(-2px);}
+
+/* ── INTRO / WIN ── */
+.fscreen{position:fixed;inset:0;z-index:200;background:#000;
+display:flex;flex-direction:column;align-items:center;justify-content:center;
+gap:14px;text-align:center;padding:clamp(14px,5vw,28px);transition:opacity .9s;}
+.fscreen::before{content:'';position:absolute;inset:0;
+background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(34,211,238,.06) 0%,transparent 65%);
+pointer-events:none;animation:breathe 5s ease-in-out infinite;}
+@keyframes breathe{0%,100%{opacity:.6;}50%{opacity:1;}}
+.maintitle{
+font-size:clamp(38px,11vw,86px);letter-spacing:clamp(6px,3vw,18px);font-weight:900;
+background:linear-gradient(135deg,#a855f7 0%,#3b82f6 35%,#22d3ee 65%,#ec4899 100%);
+-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+background-size:200%;animation:titleShimmer 4s ease infinite;line-height:1.02;
+}
+@keyframes titleShimmer{0%{background-position:0%}50%{background-position:100%}100%{background-position:0%}}
+.screensub{font-size:clamp(8px,2.2vw,11px);letter-spacing:clamp(4px,2vw,9px);
+color:rgba(255,255,255,.3);font-weight:800;margin-bottom:-4px;}
+.screenp{color:rgba(255,255,255,.52);max-width:440px;line-height:1.82;
+font-size:clamp(11px,3vw,14px);z-index:1;}
+.chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;z-index:1;max-width:92vw;}
+.chip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);
+border-radius:16px;padding:5px 11px;font-size:clamp(9px,2.3vw,11px);
+font-weight:700;letter-spacing:.7px;color:rgba(255,255,255,.58);}
+.bigbtn{
+background:linear-gradient(135deg,#7c3aed,#2563eb);border:none;border-radius:22px;
+padding:clamp(14px,4vw,18px) clamp(28px,8vw,54px);color:#fff;
+font-size:clamp(13px,3.8vw,16px);font-family:inherit;font-weight:900;
+letter-spacing:3px;cursor:pointer;margin-top:8px;
+box-shadow:0 0 45px rgba(124,58,237,.55),0 12px 32px rgba(37,99,235,.45);
+transition:all .25s;position:relative;overflow:hidden;
+}
+.bigbtn::after{content:'';position:absolute;inset:0;
+background:linear-gradient(135deg,rgba(255,255,255,.16),transparent 58%);pointer-events:none;}
+.bigbtn:hover{transform:scale(1.05) translateY(-4px);
+box-shadow:0 0 70px rgba(124,58,237,.75),0 18px 44px rgba(37,99,235,.55);}
+
+/* ── DM BADGE ── */
+#dmbadge{position:absolute;top:calc(var(--sat)+8px);left:50%;transform:translateX(-50%);
+font-size:clamp(9px,2.3vw,11px);color:var(--c3);
+background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.32);
+padding:5px 11px;border-radius:12px;font-weight:900;
+display:none;backdrop-filter:blur(8px);z-index:22;white-space:nowrap;
+box-shadow:0 0 16px rgba(239,68,68,.18);}
+
+/* ── DNA PROGRESS RING ── */
+#ringwrap{position:absolute;top:calc(var(--sat)+150px);left:50%;transform:translateX(-50%);
+z-index:9;pointer-events:none;display:none;}
+#ringwrap svg{overflow:visible;}
+.rbg{fill:none;stroke:rgba(255,255,255,.04);stroke-width:2.5;}
+.rfill{fill:none;stroke-width:2.5;stroke-linecap:round;
+transform:rotate(-90deg);transform-origin:50% 50%;
+transition:stroke-dashoffset .5s ease,stroke .8s;
+filter:drop-shadow(0 0 6px currentColor);}
+/* second ring for pop */
+.rfill2{fill:none;stroke-width:1.5;stroke-linecap:round;
+transform:rotate(-90deg);transform-origin:50% 50%;
+transition:stroke-dashoffset .5s ease,stroke .8s;opacity:.45;}
+
+/* ── COMET HINT ── */
+#comethint{position:fixed;top:42%;left:50%;transform:translate(-50%,-50%);
+color:var(--c4);font-size:clamp(11px,3vw,13px);font-weight:900;letter-spacing:2px;
+text-shadow:0 0 22px var(--c4),0 0 50px rgba(251,191,36,.45);
+pointer-events:none;z-index:45;display:none;
+animation:chblink .55s ease-in-out infinite alternate;}
+@keyframes chblink{from{opacity:.35;}to{opacity:1;}}
+
+/* ── ACHIEVEMENT POPUP (NEW) ── */
+#achpop{
+position:fixed;top:calc(var(--sat)+72px);right:-400px;
+background:rgba(3,6,18,.97);border:1px solid rgba(251,191,36,.45);
+border-radius:16px;padding:12px 16px;z-index:90;
+width:min(88vw,280px);pointer-events:none;
+box-shadow:0 8px 30px rgba(0,0,0,.8),0 0 30px rgba(251,191,36,.15);
+transition:right .4s cubic-bezier(.175,.885,.32,1.275);
+}
+#achpop.show{right:clamp(8px,2vw,16px);}
+#achpop .atitle{font-size:clamp(10px,2.5vw,12px);color:var(--c4);font-weight:900;letter-spacing:1px;margin-bottom:4px;}
+#achpop .aname{font-size:clamp(13px,3.5vw,15px);font-weight:900;margin-bottom:3px;}
+#achpop .adesc{font-size:clamp(9px,2.3vw,11px);color:rgba(255,255,255,.55);}
+
+/* ── PASSIVE INCOME TICK (NEW) ── */
+.ptick{position:fixed;font-size:10px;font-weight:900;pointer-events:none;z-index:38;
+color:var(--c0);opacity:0;animation:ptickup .8s ease-out forwards;letter-spacing:1px;}
+@keyframes ptickup{0%{opacity:.7;transform:translateY(0);}100%{opacity:0;transform:translateY(-22px);}}
+
+/* ── SMALL SCREEN ── */
+@media(max-width:375px){
+#topbar{grid-template-columns:1fr 1fr;gap:5px;}
+.sv{font-size:11px;}
+#actions{gap:5px;}
+#stageinfo{top:calc(var(--sat)+80px);}
+}
+</style>
 </head>
 <body>
-    <div id="hud">
-        <div class="hud-label">BIOMASA: <span id="evolution-text">Spóru</span></div>
-        <div class="bar"><div id="bar-fill"></div></div>
-    </div>
 
-    <script src="assets/shaders/BioShaders.js"></script>
-    <script src="world.js"></script>
-    <script src="entities.js"></script>
-    <script src="player.js"></script>
-    <script src="game.js"></script>
+<canvas id="glc"></canvas>
+<canvas id="bloom"></canvas>
+<canvas id="pc"></canvas>
+<div id="vig"></div>
+<div id="scanlines"></div>
+<div id="chroma"></div>
+<div id="mflash"></div>
+<div id="comethint">☄️ ŤUKNI NA KOMÉTU!</div>
+<div id="achpop"><div class="atitle">🏆 ÚSPECH ODOMKNUTÝ</div><div class="aname" id="achname"></div><div class="adesc" id="achdesc"></div></div>
+
+<!-- ══ INTRO ══ -->
+<div id="intro" class="fscreen">
+<div class="screensub">SIMULÁTOR VESMÍRNEJ EVOLÚCIE</div>
+<h1 class="maintitle">GENESIS</h1>
+<p class="screenp">Prebuď sa ako prvá bunka v pramorí mimozemského sveta. Evolvuj, adaptuj sa, ovládni hviezdy a dosiahnuť absolútnu Singularitu.</p>
+<div class="chips">
+<div class="chip">🦠 Bunka</div><div class="chip">🐟 Tvor</div><div class="chip">🦎 Plaz</div>
+<div class="chip">🧠 Inteligencia</div><div class="chip">🌆 Civilizácia</div><div class="chip">🚀 Vesmír</div>
+</div>
+<button class="bigbtn" onclick="startGame()">INICIOVAŤ ŽIVOT</button>
+</div>
+
+<!-- ══ HUD ══ -->
+<div id="hud">
+<div id="topbar" class="glass">
+<div class="st">
+<div class="sl" style="color:var(--c0)">ENERGIA</div>
+<div class="sv" id="venergy" style="color:var(--c0)">100</div>
+<div class="sb"><div class="sf" id="benergy" style="background:var(--c0);width:100%"></div></div>
+</div>
+<div class="st">
+<div class="sl" style="color:var(--c1)">DNA</div>
+<div class="sv" id="vdna" style="color:var(--c1)">0</div>
+<div class="sb"><div class="sf" id="bdna" style="background:var(--c1);width:0%"></div></div>
+</div>
+<div class="st">
+<div class="sl" style="color:var(--c2)">POPULÁCIA</div>
+<div class="sv" id="vpop" style="color:var(--c2)">1</div>
+<div class="sb"><div class="sf" id="bpop" style="background:var(--c2);width:0%"></div></div>
+</div>
+<div class="st">
+<div class="sl">CYKLY</div>
+<div class="sv" id="vtick" style="color:rgba(255,255,255,.38)">0</div>
+</div>
+</div>
+
+<div id="btnset" class="cbtn">⚙️</div>
+<div id="btnupg" class="cbtn">🧬</div>
+<div id="btnresearch" class="cbtn">🔬</div>
+<div id="dmbadge">🌌 0 TH</div>
+<div id="multiticker">×1.0 MULTIPLIKÁTOR</div>
+
+<div id="stageinfo">
+<div id="stageno">ŠTÁDIUM 1 / 6</div>
+<div id="stagetitle" style="color:var(--c0)">PRVOKY</div>
+<div id="stagedesc">Základná forma života v primordiálnej polievke.</div>
+<div id="goalbar">
+<div class="goalitem" id="dnagoal">DNA: 0/100</div>
+<div class="goalitem" id="popgoal">POP: 0/10</div>
+</div>
+</div>
+
+<div id="ringwrap">
+<svg width="110" height="110" viewBox="0 0 110 110">
+<circle class="rbg" cx="55" cy="55" r="50"/>
+<circle class="rfill" id="dnaringfill" cx="55" cy="55" r="50"
+stroke="var(--c1)" stroke-dasharray="314" stroke-dashoffset="314"/>
+<circle class="rfill2" id="popringfill" cx="55" cy="55" r="43"
+stroke="var(--c2)" stroke-dasharray="270" stroke-dashoffset="270"/>
+</svg>
+</div>
+
+<div id="combo"><div id="combonum" style="color:var(--c0)">×2</div><div id="combolabel">COMBO!</div></div>
+
+<div id="bottomwrap">
+<button id="evolvebtn" onclick="doEvolve()">✦ ASCENDOVAŤ DO ĎALŠIEHO ŠTÁDIA ✦</button>
+<button id="ascendbtn" onclick="togglePrestigeShop()">⚛ KVANTOVÁ SINGULARITA — PRESTIGE</button>
+<div id="actions"></div>
+</div>
+
+<div id="toasts"></div>
+<div id="loretip" style="display:none"></div>
+</div>
+
+<div id="achpop">
+<div class="atop"><span class="aico">🏆</span><span class="atitle">ÚSPECH ODOMKNUTÝ</span></div>
+<div class="aname" id="achname"></div><div class="adesc" id="achdesc"></div>
+</div>
+
+<div id="researchwrap">
+<div class="phdr">
+<span class="ptitle" style="color:var(--c0)">🔬 VÝSKUM</span>
+<button class="xbtn" onclick="toggleResearch()">✕</button>
+</div>
+<div style="font-size:10px;color:rgba(255,255,255,.35);padding-bottom:8px;border-bottom:1px dashed rgba(255,255,255,.08);">Permanentné bonusy za Energiu — prežívajú Prestige!</div>
+<div id="reslist"></div>
+</div>
+
+<div id="prestigeshop">
+<div class="psphdr">
+<span class="psptitle">⚛ PRESTIGE — TEMNÁ HMOTA</span>
+<div style="display:flex;align-items:center;gap:8px;">
+<span id="psp-dmcount" style="font-size:10px;color:var(--c3);font-weight:900;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.28);padding:3px 8px;border-radius:7px;">0 TH</span>
+<button class="xbtn" onclick="togglePrestigeShop()">✕</button>
+</div>
+</div>
+<div class="pspgrid" id="psplist"></div>
+<div style="padding:8px 0 2px;text-align:center;">
+<button class="sbtn red" onclick="confirmPrestige()" style="font-size:clamp(10px,2.8vw,12px);letter-spacing:1px;">⚛ SPUSTIŤ SINGULARITU — získaj TH, reset Vesmíru</button>
+</div>
+</div>
+
+<!-- ══ UPGRADES ══ -->
+<div id="upgpanel">
+<div class="phdr">
+<span class="ptitle">🧬 EVOLUČNÝ STROM</span>
+<button class="xbtn" onclick="toggleUpg()">✕</button>
+</div>
+<div id="upglist"></div>
+</div>
+
+<!-- ══ SETTINGS ══ -->
+<div id="settingsmodal">
+<div class="mbox">
+<div style="display:flex;justify-content:space-between;align-items:center;">
+<h2>⚙️ SYSTÉM</h2>
+<button class="xbtn" onclick="toggleSettings()">✕</button>
+</div>
+<div class="hintbox">
+<h3>📖 PRÍRUČKA</h3>
+<ul>
+<li><span class="hi">Klik na organizmus:</span> Energia + combo bonus pri rýchlych klikoch.</li>
+<li><span class="hi">Akcie:</span> Kupuj za energiu → DNA + populácia rastú.</li>
+<li><span class="hi">Evolúcia:</span> Splň DNA a Pop cieľ. DNA sa nuluje!</li>
+<li><span class="hi">Kométa ☄️:</span> Zlatá kométa preletí — ťukni na ňu rýchlo!</li>
+<li><span class="hi">Vylepšenia 🧬:</span> Míňaj DNA na strom pasívnych bonusov.</li>
+<li><span class="hi">Singularita:</span> Prestige po Štádiu 6 → Temná Hmota (trvalý ×multiplier).</li>
+<li><span class="hi">Combo:</span> Klikaj rýchlo pre x2–x5 energiu!</li>
+</ul>
+</div>
+<div id="statsbox">
+<div class="statrow"><div class="sk">Kliky</div><div class="sv2" id="st-clicks">0</div></div>
+<div class="statrow"><div class="sk">Kométy</div><div class="sv2" id="st-comets">0</div></div>
+<div class="statrow"><div class="sk">Evolúcie</div><div class="sv2" id="st-evols">0</div></div>
+<div class="statrow"><div class="sk">TH</div><div class="sv2" id="st-dm">0</div></div>
+</div>
+<button class="sbtn" id="audiobtn" onclick="toggleAudio()">🔊 Zvuk: ZAPNUTÝ</button>
+<button class="sbtn" onclick="saveGame()">💾 Uložiť hru</button>
+<button class="sbtn red" onclick="hardReset()">⚠️ Hard Reset</button>
+</div>
+</div>
+
+<!-- ══ EVENT ══ -->
+<div id="evoverlay">
+<div id="evbox">
+<span class="evico" id="evico">⚠️</span>
+<h2 id="evtitle">Kozmická udalosť</h2>
+<p id="evdesc">Popis.</p>
+<div class="evchoices" id="evchoices"></div>
+</div>
+</div>
+
+<!-- ══ WIN ══ -->
+<div id="winscreen" class="fscreen" style="display:none;">
+<div style="font-size:72px;filter:drop-shadow(0 0 35px #a855f7);animation:breathe 2s infinite">🌌</div>
+<h1 class="maintitle" style="font-size:clamp(28px,8vw,58px)">SINGULARITA</h1>
+<p class="screenp">Tvoj druh prekonal biologické obmedzenia. Ste kozmická civilizácia — tvorcovia hviezd, páni časopriestoru.</p>
+<div id="winstats" style="color:rgba(255,255,255,.35);font-size:10px;letter-spacing:2px;"></div>
+<button class="bigbtn" onclick="doPrestige()" style="background:linear-gradient(135deg,#7f1d1d,#ef4444,#b91c1c);">⚛ KVANTOVÁ SINGULARITA</button>
+<button class="bigbtn" onclick="location.reload()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);box-shadow:none;font-size:11px;padding:11px 24px;">Hrať znova</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+// ═══════════════════════════════════════════════════════════
+// AUDIO ENGINE v3 — ASMR Generative Synthesizer
+// ═══════════════════════════════════════════════════════════
+let AC,MC,reverb,ambOsc,ambGain,ambFilter,audioOn=true;
+
+function initAudio(){
+if(AC)return AC.state==='suspended'&&AC.resume();
+AC=new(window.AudioContext||window.webkitAudioContext)();
+MC=AC.createDynamicsCompressor();
+MC.threshold.value=-10;MC.ratio.value=8;MC.attack.value=.002;MC.release.value=.1;
+// Master EQ — high shelf boost for clarity
+const eq=AC.createBiquadFilter();
+eq.type='highshelf';eq.frequency.value=8000;eq.gain.value=2;
+MC.connect(eq);eq.connect(AC.destination);
+// Convolution reverb (impulse generated)
+try{
+reverb=AC.createConvolver();
+const len=AC.sampleRate*1.5,buf=AC.createBuffer(2,len,AC.sampleRate);
+for(let c=0;c<2;c++){const d=buf.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);}
+reverb.buffer=buf;reverb.connect(MC);
+}catch(e){reverb=null;}
+_startDrone();
+}
+
+function _rv(){return reverb||MC;}
+
+function _startDrone(){
+if(!audioOn||ambOsc)return;
+// Base drone — 3 oscillators forming a minor chord
+[[40,1],[60,.5],[54,.3]].forEach(([f,v],idx)=>{
+const o=AC.createOscillator(),g=AC.createGain(),filt=AC.createBiquadFilter();
+o.type=idx===0?'sawtooth':'sine';
+o.frequency.value=f;
+filt.type='lowpass';filt.frequency.value=200+idx*50;
+g.gain.value=v*.018;
+// LFO per oscillator
+const lfo=AC.createOscillator(),lg=AC.createGain();
+lfo.frequency.value=.06+idx*.04;lg.gain.value=f*.012;
+lfo.connect(lg);lg.connect(o.frequency);lfo.start();
+o.connect(filt);filt.connect(g);g.connect(MC);
+o.start();
+if(idx===0){ambOsc=o;ambGain=g;ambFilter=filt;}
+});
+syncDrone();
+}
+
+function syncDrone(){
+if(!ambOsc||!AC)return;
+const t=AC.currentTime;
+ambOsc.frequency.setTargetAtTime(38+G.stage*15,t,2);
+ambFilter.frequency.setTargetAtTime(120+G.stage*90,t,2);
+}
+
+function snd(type){
+if(!audioOn||!AC)return;
+const t=AC.currentTime;
+switch(type){
+case 'click':{
+// Organic resonant click — pitch varies with combo
+const base=500+G.combo*120+Math.random()*200;
+const o=AC.createOscillator(),g=AC.createGain(),f=AC.createBiquadFilter();
+f.type='bandpass';f.frequency.value=base*1.5;f.Q.value=4;
+o.type='sine';o.frequency.setValueAtTime(base,t);
+o.frequency.exponentialRampToValueAtTime(base*2.5,t+.06);
+g.gain.setValueAtTime(.07,t);g.gain.exponentialRampToValueAtTime(.001,t+.08);
+o.connect(f);f.connect(g);g.connect(MC);o.start();o.stop(t+.09);
+// subtle sub click
+const o2=AC.createOscillator(),g2=AC.createGain();
+o2.type='sine';o2.frequency.value=80;
+g2.gain.setValueAtTime(.04,t);g2.gain.exponentialRampToValueAtTime(.001,t+.05);
+o2.connect(g2);g2.connect(MC);o2.start();o2.stop(t+.06);
+break;}
+case 'action':{
+const o=AC.createOscillator(),g=AC.createGain(),f=AC.createBiquadFilter();
+f.type='lowpass';f.frequency.value=500;
+o.type='triangle';o.frequency.setValueAtTime(280,t);
+o.frequency.exponentialRampToValueAtTime(140,t+.12);
+g.gain.setValueAtTime(.038,t);g.gain.exponentialRampToValueAtTime(.001,t+.13);
+o.connect(f);f.connect(g);g.connect(MC);o.start();o.stop(t+.14);
+break;}
+case 'evolve':{
+// Epic multi-layer evolve sound
+[55,110,165,220,330,440].forEach((f,i)=>{
+const o=AC.createOscillator(),g=AC.createGain();
+o.type=i<3?'sawtooth':'sine';
+o.frequency.setValueAtTime(f,t);
+o.frequency.linearRampToValueAtTime(f*16,t+2.2);
+g.gain.setValueAtTime(0,t);
+g.gain.linearRampToValueAtTime(.05/(i+1),t+.5);
+g.gain.linearRampToValueAtTime(0,t+2.5);
+o.connect(g);g.connect(_rv());o.start();o.stop(t+2.6);
+});
+// Shimmer cascade
+[880,1320,1760,2200,2640,3520].forEach((f,i)=>setTimeout(()=>{
+if(!AC)return;const t2=AC.currentTime;
+const o=AC.createOscillator(),g=AC.createGain();
+o.type='sine';o.frequency.value=f;
+g.gain.setValueAtTime(.055,t2);g.gain.exponentialRampToValueAtTime(.001,t2+1.2);
+o.connect(g);g.connect(_rv());o.start();o.stop(t2+1.3);
+},i*140));
+// deep impact
+const boom=AC.createOscillator(),bg=AC.createGain();
+boom.type='sine';boom.frequency.setValueAtTime(60,t);
+boom.frequency.exponentialRampToValueAtTime(20,t+1.5);
+bg.gain.setValueAtTime(.45,t);bg.gain.exponentialRampToValueAtTime(.001,t+1.8);
+boom.connect(bg);bg.connect(MC);boom.start();boom.stop(t+2);
+break;}
+case 'comet':{
+const o=AC.createOscillator(),g=AC.createGain(),f=AC.createBiquadFilter();
+f.type='bandpass';f.frequency.value=2000;f.Q.value=2;
+o.type='sine';o.frequency.setValueAtTime(1400,t);o.frequency.exponentialRampToValueAtTime(3400,t+.22);
+g.gain.setValueAtTime(.1,t);g.gain.exponentialRampToValueAtTime(.001,t+1.2);
+o.connect(f);f.connect(g);g.connect(_rv());o.start();o.stop(t+1.3);
+break;}
+case 'upgrade':{
+const scale=[523,659,784,988,1175,1319];
+scale.forEach((f,i)=>setTimeout(()=>{
+if(!AC)return;const t2=AC.currentTime;
+const o=AC.createOscillator(),g=AC.createGain();
+o.type='sine';o.frequency.value=f;
+g.gain.setValueAtTime(.07,t2);g.gain.exponentialRampToValueAtTime(.001,t2+.65);
+o.connect(g);g.connect(_rv());o.start();o.stop(t2+.7);
+},i*85));
+break;}
+case 'error':{
+const o=AC.createOscillator(),g=AC.createGain();
+o.type='sawtooth';o.frequency.setValueAtTime(200,t);o.frequency.setValueAtTime(100,t+.07);
+g.gain.setValueAtTime(.04,t);g.gain.linearRampToValueAtTime(0,t+.18);
+o.connect(g);g.connect(MC);o.start();o.stop(t+.19);
+break;}
+case 'event':{
+const o=AC.createOscillator(),g=AC.createGain();
+o.type='sine';o.frequency.value=480;
+g.gain.setValueAtTime(.055,t);g.gain.exponentialRampToValueAtTime(.001,t+.5);
+o.connect(g);g.connect(_rv());o.start();o.stop(t+.55);
+break;}
+case 'ach':{
+[880,1100,1320,1760].forEach((f,i)=>setTimeout(()=>{
+if(!AC)return;const t2=AC.currentTime;
+_o2('sine',f,.8,.065);
+},i*100));
+break;}
+case 'combo':{
+const o=AC.createOscillator(),g=AC.createGain();
+o.type='sine';o.frequency.setValueAtTime(600+G.combo*200,t);
+o.frequency.exponentialRampToValueAtTime(1200+G.combo*200,t+.05);
+g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.001,t+.06);
+o.connect(g);g.connect(MC);o.start();o.stop(t+.07);
+break;}
+}
+}
+function _o2(type,freq,dur,vol){
+if(!AC)return;
+const o=AC.createOscillator(),g=AC.createGain();
+o.type=type;o.frequency.value=freq;
+g.gain.setValueAtTime(vol,AC.currentTime);
+g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);
+o.connect(g);g.connect(_rv());o.start();o.stop(AC.currentTime+dur+.01);
+}
+function toggleAudio(){
+audioOn=!audioOn;
+if(audioOn){initAudio();if(ambGain)ambGain.gain.setTargetAtTime(.018,AC.currentTime,.4);}
+else{if(ambGain)ambGain.gain.setTargetAtTime(0,AC.currentTime,.3);}
+document.getElementById('audiobtn').textContent=audioOn?'🔊 Zvuk: ZAPNUTÝ':'🔇 Zvuk: VYPNUTÝ';
+}
+
+// ═══════════════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════════════
+let G={
+energy:100,maxEnergy:150,dna:0,population:1,tick:0,stage:0,
+running:false,darkMatter:0,clickPower:2,combo:0,
+mods:{energyRegen:1,actionCost:1,dnaGain:1,popGrowth:1,global:1},
+display:{energy:100,dna:0,pop:1},
+achievements:{}
+};
+let stats={clicks:0,comets:0,evolutions:0,totalDNA:0,totalEnergy:0};
+let comboTimer=null,lastClick=0;
+let passiveTickEl=null;
+
+function lerp(a,b,t){return a+(b-a)*t;}
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v));}
+function fmt(n){
+if(n>=1e18)return(n/1e18).toFixed(2)+'Qi';
+if(n>=1e15)return(n/1e15).toFixed(2)+'Q';
+if(n>=1e12)return(n/1e12).toFixed(2)+'T';
+if(n>=1e9)return(n/1e9).toFixed(2)+'B';
+if(n>=1e6)return(n/1e6).toFixed(2)+'M';
+if(n>=1000)return(n/1000).toFixed(1)+'k';
+return Math.floor(n).toString();
+}
+
+// ═══════════════════════════════════════════════════════════
+// STAGE & UPGRADE DATA
+// ═══════════════════════════════════════════════════════════
+const STAGES=[
+{name:"PRVOKY", sub:"Štádium 1 / 6",color:"#22d3ee",dnaGoal:100, popGoal:10,
+desc:"Základná forma života v primordiálnej polievke. Delením začína dlhá cesta.",
+actions:[
+{icon:"☀️",label:"Fotosyntéza", cost:10, energy:25, dna:2, pop:0, msg:"Fotóny z mladej hviezdy absorbované."},
+{icon:"🦠",label:"Mitóza", cost:25, energy:0, dna:8, pop:1, msg:"Bunkové delenie úspešné!"},
+{icon:"🧬",label:"Mutácia DNA", cost:40, energy:-5, dna:20, pop:0, msg:"Prospešná mutácia zapísaná do genómu!"}
+]},
+{name:"TVOR", sub:"Štádium 2 / 6",color:"#3b82f6",dnaGoal:400, popGoal:50,
+desc:"Zhluky buniek sa spojili. Prvý vedomý pohyb v oceánoch Zeta-4.",
+actions:[
+{icon:"🦐",label:"Lov mikróbov", cost:15, energy:45, dna:5, pop:0, msg:"Ulovená výživná biomasa."},
+{icon:"🥚",label:"Kladenie ikier",cost:50, energy:0, dna:15, pop:4, msg:"Tvoj druh sa šíri podmorskými prúdmi."},
+{icon:"👁️",label:"Vývoj zmyslov", cost:80, energy:-10,dna:45, pop:0, msg:"Primitívne fotoreceptory vyvinuté!"}
+]},
+{name:"PLAZ", sub:"Štádium 3 / 6",color:"#10b981",dnaGoal:1500, popGoal:200,
+desc:"Váš druh vystúpil na súš. Vyvinuli sa silné končatiny a pľúca.",
+actions:[
+{icon:"🦎",label:"Vyhrievanie", cost:20, energy:60, dna:10, pop:0, msg:"Metabolizmus urýchlený slnkom."},
+{icon:"🌿",label:"Migrácia", cost:90, energy:0, dna:30, pop:15, msg:"Nové úrodné teritóriá obsadené!"},
+{icon:"🛡️",label:"Adaptácia kože",cost:120, energy:0, dna:80, pop:0, msg:"Šupiny chránia pred predátormi."}
+]},
+{name:"INTELIGENCIA", sub:"Štádium 4 / 6",color:"#f59e0b",dnaGoal:5000, popGoal:1500,
+desc:"Komplexný mozog. Schopnosť používať nástroje a oheň mení pravidlá.",
+actions:[
+{icon:"🍖",label:"Skupinový lov", cost:35, energy:90, dna:20, pop:0, msg:"Taktická spolupráca prináša hojnosť."},
+{icon:"⛺",label:"Prvé Osady", cost:150, energy:0, dna:50, pop:60, msg:"Trvalé sídla chránia tvoj druh."},
+{icon:"🔥",label:"Objav ohňa", cost:250, energy:30, dna:180, pop:0, msg:"Oheň — základ všetkej civilizácie!"}
+]},
+{name:"CIVILIZÁCIA", sub:"Štádium 5 / 6",color:"#a855f7",dnaGoal:20000, popGoal:15000,
+desc:"Metropoly, veda a globálna kultúra. Planéta je systematicky využívaná.",
+actions:[
+{icon:"🛢️",label:"Priemysel", cost:60, energy:150,dna:30, pop:0, msg:"Suroviny transformované na energiu."},
+{icon:"🏙️",label:"Expanzia miest",cost:300, energy:-50,dna:120, pop:400, msg:"Megamestá sa rozpínajú do výšok."},
+{icon:"🔬",label:"Kvantová veda", cost:500, energy:0, dna:450, pop:0, msg:"Technologická singularita sa blíži!"}
+]},
+{name:"VESMÍR", sub:"Štádium 6 / 6",color:"#ec4899",dnaGoal:150000,popGoal:500000,
+desc:"Prekonali ste gravitáciu. Ste kolonizátori hviezd, páni galaxií.",
+actions:[
+{icon:"☀️",label:"Ťažba z hviezd", cost:120, energy:400, dna:80, pop:0, msg:"Dysonova sféra harvestuje hviezdnu energiu!"},
+{icon:"🛸",label:"Umelá inkubácia",cost:600, energy:0, dna:300, pop:2500, msg:"Klonovacie stanice produkujú nových občanov."},
+{icon:"🌌",label:"Warpový skok", cost:1000, energy:-100,dna:1200, pop:0, msg:"Štruktúra časopriestoru roztrhnutá!"}
+]}
+];
+
+let UPGRADES=[
+// Tier 1 — Early game
+{id:'u01',req:0,name:"Svalové Vlákna", desc:"Klik +2 energie.", cost:40, type:'cp', val:2, bought:false,icon:"👆",tier:1},
+{id:'u02',req:0,name:"Efektívna Mitóza", desc:"Ceny akcií −10%.", cost:60, type:'ac', val:.9, bought:false,icon:"🦠",tier:1},
+{id:'u03',req:0,name:"Bunková Pamäť", desc:"DNA z akcií +20%.", cost:80, type:'dg', val:1.2, bought:false,icon:"🧬",tier:1},
+// Tier 2
+{id:'u04',req:1,name:"Slnečné Receptory", desc:"Pasívna energia +50%.", cost:150, type:'er', val:1.5, bought:false,icon:"☀️",tier:2},
+{id:'u05',req:1,name:"Nervové Uzliny", desc:"DNA z akcií +30%.", cost:220, type:'dg', val:1.3, bought:false,icon:"🧠",tier:2},
+{id:'u06',req:2,name:"R-stratégia", desc:"Rast populácie +50%.", cost:400, type:'pg', val:1.5, bought:false,icon:"📈",tier:2},
+// Tier 3
+{id:'u07',req:3,name:"Kvantové Batérie", desc:"Max energia 500, klik +8.", cost:1200, type:'me', val:500, bought:false,icon:"🔋",tier:3},
+{id:'u08',req:3,name:"Synaptický Boost", desc:"Všetky akcie +20%.", cost:1800, type:'gl', val:1.2, bought:false,icon:"⚡",tier:3},
+{id:'u09',req:3,name:"Koloniálna Sieť", desc:"Populácia +70%, DNA +15%.", cost:2200, type:'pg', val:1.7, bought:false,icon:"🌐",tier:3},
+// Tier 4
+{id:'u10',req:4,name:"Plazmový Reaktor", desc:"Pasívna energia ×2.", cost:4000, type:'er', val:2.0, bought:false,icon:"⚛️",tier:4},
+{id:'u11',req:4,name:"Bio-Počítač", desc:"DNA z akcií ×2.", cost:5500, type:'dg', val:2.0, bought:false,icon:"💻",tier:4},
+// Tier 5 — End game
+{id:'u12',req:5,name:"Umelá Inteligencia",desc:"Všetko +60%.", cost:12000, type:'gl', val:1.6, bought:false,icon:"🤖",tier:5},
+{id:'u13',req:5,name:"Časová Dilatácia", desc:"Klik +50 energie.", cost:30000, type:'cp', val:50, bought:false,icon:"⏳",tier:5},
+{id:'u14',req:5,name:"Temná Hmota+", desc:"TH bonus ×2 pri Prestige.", cost:80000, type:'dm', val:2, bought:false,icon:"🌌",tier:5},
+];
+
+const EVENTS=[
+{cond:g=>g.stage>=0,icon:"☄️",title:"Pád Meteoritu",
+desc:"Obrovský meteorit zasiahol ocean. Katastrofálne? Alebo príležitosť?",
+choices:[
+{label:"Skryť sa v hlbine",effect:()=>evR({energy:-30},"Prežili ste útekom do hlbín.")},
+{label:"Preskúmať kráter", effect:()=>{Math.random()>.5?evR({dna:200,pop:-Math.floor(G.population*.12)},"Ožiarenie — DNA zisk!"):evR({dna:100},"Bezpečne získané vzorky DNA.");}}
+]},
+{cond:g=>g.stage>=2,icon:"🌋",title:"Sopečná Erupcia",
+desc:"Masívna erupcia blokuje slnko. Teplota dramaticky klesá na celom kontinente.",
+choices:[
+{label:"Hibernovať", effect:()=>evR({energy:-80},"Prečkali ste spánkom pod zemou.")},
+{label:"Využiť teplo", effect:()=>evR({energy:180,dna:60},"Adaptácia na geotermálnu energiu úspešná!")}
+]},
+{cond:g=>g.stage>=4,icon:"🛸",title:"Cudzí Signál",
+desc:"Na orbite zachytený neprirodzený geometrický signál. Reagovať?",
+choices:[
+{label:"Ignorovať", effect:()=>evR({},"Opatrná mlčanlivosť zachovaná.")},
+{label:"Odpovedať", effect:()=>{Math.random()>.4?evR({dna:2000,energy:350},"Revolučné mimozemské dáta prijaté!"):evR({pop:-Math.floor(G.population*.18),energy:-250},"Kontakt bol pasca!");}}
+]},
+{cond:g=>g.stage>=1,icon:"🌊",title:"Gigantická Vlna",
+desc:"Tsunami mieri na pobrežné sídla vášho druhu.",
+choices:[
+{label:"Evakuovať", effect:()=>evR({energy:-45,pop:-Math.floor(G.population*.04)},"Väčšina prežila evakuáciu.")},
+{label:"Postaviť hráz", effect:()=>{Math.random()>.5?evR({dna:80},"Hráz vydržala — inžinierske skúsenosti!"):evR({pop:-Math.floor(G.population*.22),energy:-100},"Hráz sa zrútila!");}}
+]},
+{cond:g=>g.stage>=3,icon:"🧪",title:"Bio-Mutácia",
+desc:"Spontánna masová mutácia u časti populácie. Neznáme dôsledky.",
+choices:[
+{label:"Izolovať mutantov",effect:()=>evR({dna:300},"Štúdium mutantov prinieslo genetické poznatky.")},
+{label:"Nechať to plynúť", effect:()=>{Math.random()>.45?evR({pop:Math.floor(G.population*.25),dna:150},"Mutácia zvýšila vitalitu druhu!"):evR({pop:-Math.floor(G.population*.08)},"Niektorí neprežili zmenu.");}}
+]},
+{cond:g=>g.stage>=5,icon:"⚫",title:"Kvantová Anomália",
+desc:"V blízkosti vašej slnečnej sústavy sa objavila záhadná kvantová anomália.",
+choices:[
+{label:"Skúmať", effect:()=>{Math.random()>.35?evR({dna:5000,energy:500},"Anomália odhalila kvantové tajomstvá!"):evR({energy:-400},"Anomália pohltila energiu!");},},
+{label:"Vyhnúť sa",effect:()=>evR({dna:800},"Bezpečné obídenie prinieslo navigačné dáta.")}
+]},
+];
+
+const ACHIEVEMENTS=[
+{id:'a01',name:"Prvá Iskra", desc:"Dosiahnuť 1 000 DNA.", req:()=>stats.totalDNA>=1000, bonus:()=>{G.maxEnergy+=100;}},
+{id:'a02',name:"Zlatá Éra", desc:"Populácia 100 000.", req:()=>G.population>=100000, bonus:()=>{G.clickPower+=20;}},
+{id:'a03',name:"Klikoholik", desc:"100 klikov na organizmus.", req:()=>stats.clicks>=100, bonus:()=>{G.mods.actionCost*=.95;}},
+{id:'a04',name:"Lovec Komét", desc:"Prvá kométa zachytená.", req:()=>stats.comets>=1, bonus:()=>{G.mods.dnaGain*=1.1;G.mods.popGrowth*=1.1;}},
+{id:'a05',name:"Evolúcia Raz", desc:"Prvá evolúcia dokončená.", req:()=>stats.evolutions>=1, bonus:()=>{G.mods.global*=1.05;}},
+{id:'a06',name:"Combo Master", desc:"Dosiahnuť Combo ×5.", req:()=>stats.clicks>=200, bonus:()=>{G.clickPower+=30;}},
+{id:'a07',name:"Energetik", desc:"Max energia nad 1 000.", req:()=>G.maxEnergy>=1000, bonus:()=>{G.mods.energyRegen*=1.2;}},
+{id:'a08',name:"DNA Databáza", desc:"Kumulatívne 50k DNA.", req:()=>stats.totalDNA>=50000, bonus:()=>{G.mods.dnaGain*=1.15;}},
+];
+
+// ═══════════════════════════════════════════════════════════
+// SAVE / LOAD
+// ═══════════════════════════════════════════════════════════
+const SK='genesis_v7';
+function saveGame(){
+try{localStorage.setItem(SK,JSON.stringify({G,UPGRADES,stats}));toast("💾 Uložené.","var(--c0)");}catch(e){}
+}
+function loadGame(){
+try{
+const d=JSON.parse(localStorage.getItem(SK)||'null');
+if(!d)return false;
+G=Object.assign(G,d.G);G.combo=0;
+if(d.UPGRADES)UPGRADES=d.UPGRADES;
+if(d.stats)stats=Object.assign(stats,d.stats);
+G.display.energy=G.energy;G.display.dna=G.dna;G.display.pop=G.population;
+return true;
+}catch(e){return false;}
+}
+function hardReset(){
+if(confirm("Vymazať VŠETKY dáta vrátane Temnej Hmoty?"))
+{localStorage.removeItem(SK);location.reload();}
+}
+
+// ═══════════════════════════════════════════════════════════
+// HUD UPDATE
+// ═══════════════════════════════════════════════════════════
+let _hudDirty=false;
+function markDirty(){_hudDirty=true;}
+function updateHUD(){
+if(!_hudDirty)return;_hudDirty=false;
+const s=STAGES[G.stage];
+const e=G.display.energy,d=G.display.dna,p=G.display.pop;
+// Energy
+document.getElementById('venergy').textContent=fmt(Math.floor(e))+'/'+fmt(G.maxEnergy);
+document.getElementById('benergy').style.width=clamp((e/G.maxEnergy)*100,0,100)+'%';
+document.getElementById('benergy').style.background=s.color;
+// DNA
+document.getElementById('vdna').textContent=fmt(Math.floor(d))+'/'+fmt(s.dnaGoal);
+document.getElementById('bdna').style.width=clamp((d/s.dnaGoal)*100,0,100)+'%';
+document.getElementById('bdna').style.background=s.color;
+// Pop
+document.getElementById('vpop').textContent=fmt(Math.floor(p));
+document.getElementById('bpop').style.width=clamp((p/s.popGoal)*100,0,100)+'%';
+document.getElementById('bpop').style.background=s.color;
+document.getElementById('vtick').textContent=G.tick;
+// Stage
+document.getElementById('stageno').textContent=s.sub;
+document.getElementById('stagetitle').textContent=s.name;
+document.getElementById('stagetitle').style.color=s.color;
+document.getElementById('stagedesc').textContent=s.desc;
+// Goal bars
+const dnaDone=G.dna>=s.dnaGoal,popDone=G.population>=s.popGoal;
+const dg=document.getElementById('dnagoal'),pg=document.getElementById('popgoal');
+dg.textContent='DNA: '+fmt(Math.floor(G.dna))+'/'+fmt(s.dnaGoal);
+dg.className='goalitem'+(dnaDone?' done':'');
+pg.textContent='POP: '+fmt(Math.floor(G.population))+'/'+fmt(s.popGoal);
+pg.className='goalitem'+(popDone?' done':'');
+// Rings
+const dr=Math.min(1,G.dna/s.dnaGoal),pr=Math.min(1,G.population/s.popGoal);
+document.getElementById('dnaringfill').style.strokeDashoffset=314*(1-dr);
+document.getElementById('dnaringfill').style.stroke=s.color;
+document.getElementById('popringfill').style.strokeDashoffset=270*(1-pr);
+document.getElementById('popringfill').style.stroke=s.color;
+// Evolve/Ascend
+const ready=G.dna>=s.dnaGoal&&G.population>=s.popGoal;
+const eb=document.getElementById('evolvebtn'),ab=document.getElementById('ascendbtn');
+if(ready&&G.stage<5){eb.style.display='block';ab.style.display='none';}
+else if(ready&&G.stage===5){eb.style.display='none';ab.style.display='block';showWin();}
+else{eb.style.display='none';ab.style.display='none';}
+// Action costs
+document.querySelectorAll('.abtn').forEach((btn,i)=>{
+if(i<s.actions.length){
+const c=calcCost(s.actions[i]);
+const ce=btn.querySelector('.ac');
+if(ce)ce.textContent='-'+fmt(c)+' E';
+btn.classList.toggle('off',G.energy<c);
+btn.style.borderColor=G.energy>=c?s.color+'44':'rgba(255,255,255,.08)';
+}
+});
+// Multiplier ticker
+const pm=1+G.darkMatter*.1,gm=G.mods.global*pm;
+if(gm>1.05){
+const mt=document.getElementById('multiticker');
+mt.style.display='block';mt.textContent='×'+gm.toFixed(2)+' MULTIPLIKÁTOR';
+}
+// Stats panel
+document.getElementById('st-clicks').textContent=fmt(stats.clicks);
+document.getElementById('st-comets').textContent=stats.comets;
+document.getElementById('st-evols').textContent=stats.evolutions;
+document.getElementById('st-dm').textContent=G.darkMatter;
+}
+
+function calcCost(a){
+let c=a.cost*G.mods.actionCost;
+if(G.achievements['a03'])c*=.95;
+return Math.round(c);
+}
+
+function renderActions(){
+const s=STAGES[G.stage];
+const el=document.getElementById('actions');el.innerHTML='';
+s.actions.forEach((a,i)=>{
+const b=document.createElement('button');b.className='abtn';
+b.innerHTML=`<span class="ai">${a.icon}</span><span class="al">${a.label}</span><span class="ac">-? E</span><div class="cdbar" style="color:${s.color}"></div>`;
+b.style.setProperty('--ac',s.color);
+b.onclick=()=>doAction(i,b);
+el.appendChild(b);
+});
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMBO SYSTEM
+// ═══════════════════════════════════════════════════════════
+function updateCombo(increment){
+if(increment){
+clearTimeout(comboTimer);
+G.combo=Math.min(G.combo+1,8);
+comboTimer=setTimeout(()=>{G.combo=0;hideCombo();},1800);
+if(G.combo>=2){showComboUI();snd('combo');}
+}
+}
+function showComboUI(){
+const c=document.getElementById('combo'),n=document.getElementById('combonum');
+const s=STAGES[G.stage];
+n.style.color=s.color;
+n.textContent='×'+G.combo;
+c.style.display='block';
+// restart animation
+c.style.animation='none';requestAnimationFrame(()=>c.style.animation='comboPop .25s cubic-bezier(.175,.885,.32,1.6) forwards');
+}
+function hideCombo(){document.getElementById('combo').style.display='none';}
+
+// ═══════════════════════════════════════════════════════════
+// GAME LOGIC
+// ═══════════════════════════════════════════════════════════
+function doAction(idx,btnEl){
+if(!G.running)return;
+const s=STAGES[G.stage];const a=s.actions[idx];
+const cost=calcCost(a);
+if(G.energy<cost){snd('error');toast("⚡ Nedostatok energie!","var(--c3)");return;}
+if(!AC)initAudio();snd('action');
+const pm=1+G.darkMatter*.1;
+let gm=G.mods.global*pm;
+if(G.achievements['a04'])gm*=1.1;
+if(G.achievements['a05'])gm*=1.05;
+G.energy=Math.min(G.maxEnergy,Math.max(0,G.energy-cost+(a.energy>0?a.energy*gm:a.energy)));
+const dnaGain=a.dna*G.mods.dnaGain*gm;
+const popGain=a.pop*G.mods.popGrowth*gm;
+G.dna=Math.max(0,G.dna+dnaGain);
+G.population=Math.max(1,G.population+popGain);
+stats.totalDNA+=dnaGain;
+const cx=window.innerWidth/2,cy=window.innerHeight*.62;
+burst(cx+(Math.random()*80-40),cy,s.color,12);
+if(dnaGain>0)ftxt(cx+(Math.random()*90-45),cy-35,'+'+fmt(Math.round(dnaGain))+' DNA',s.color);
+if(popGain>0)femoji(cx+(Math.random()*70-35),cy-25,'🧬');
+// cooldown bar animation
+if(btnEl){const bar=btnEl.querySelector('.cdbar');if(bar){bar.style.transform='scaleX(1)';setTimeout(()=>bar.style.transform='scaleX(0)',900);}}
+toast(a.msg,"rgba(255,255,255,.55)");
+if(Math.random()<.09)triggerEvent();
+checkAch();markDirty();
+}
+
+function doEvolve(){
+if(G.stage>=5)return;
+if(!AC)initAudio();
+snd('evolve');G.stage++;G.dna=0;stats.evolutions++;
+const ns=STAGES[G.stage];
+buildOrganism(G.stage);buildNebula(G.stage);updateEnv();syncDrone();
+if(fltMat)fltMat.color=new THREE.Color(ns.color);
+if(pointLight)pointLight.color=new THREE.Color(ns.color);
+// cinematic zoom
+camTarget=4;setTimeout(()=>{camTarget=12;},1100);
+// particle explosion
+const cx=window.innerWidth/2,cy=window.innerHeight/2;
+for(let i=0;i<14;i++)setTimeout(()=>burst(cx+(Math.random()-.5)*360,cy+(Math.random()-.5)*310,ns.color,42),i*100);
+// screen flash
+const mf=document.getElementById('mflash');
+mf.classList.add('flash');setTimeout(()=>mf.classList.remove('flash'),200);
+renderActions();renderUpg();saveGame();
+showEv(ns.name||"🧬","✦ "+ns.name+" ✦",ns.desc,[{label:"Pokračovať →",effect:null}],true);
+checkAch();markDirty();
+}
+
+function doPrestige(){
+if(!confirm("Kvantová Singularita. Získaš Temnú Hmotu — trvalý multiplikátor. Pokračovať?"))return;
+snd('evolve');
+const dmGain=(1+Math.floor(G.dna/50000))*(UPGRADES.find(u=>u.id==='u14'&&u.bought)?2:1);
+G.darkMatter+=dmGain;
+G.stage=0;G.energy=100;G.maxEnergy=150;G.dna=0;G.population=1;G.tick=0;G.clickPower=2;G.combo=0;
+G.mods={energyRegen:1,actionCost:1,dnaGain:1,popGrowth:1,global:1};
+UPGRADES.forEach(u=>u.bought=false);
+saveGame();location.reload();
+}
+
+// ═══════════════════════════════════════════════════════════
+// UPGRADES
+// ═══════════════════════════════════════════════════════════
+function toggleUpg(){
+const p=document.getElementById('upgpanel');
+p.classList.toggle('open');
+if(p.classList.contains('open'))renderUpg();
+}
+function renderUpg(){
+const l=document.getElementById('upglist');l.innerHTML='';
+let lastTier=-1,shown=0;
+UPGRADES.forEach(u=>{
+if(G.stage<u.req&&!u.bought)return;shown++;
+if(u.tier!==lastTier){
+lastTier=u.tier;
+const tl=document.createElement('div');tl.className='utier';
+tl.textContent='TIER '+u.tier+' VYLEPŠENIA';l.appendChild(tl);
+}
+const ok=G.dna>=u.cost&&!u.bought;
+const d=document.createElement('div');
+d.className='uitem'+(u.bought?' ubought':'')+((!ok&&!u.bought)?' ulocked':'');
+d.innerHTML=`<div class="utop"><div class="uico">${u.icon}</div>
+<div><div class="uname">${u.name}</div><div class="udesc">${u.desc}</div></div></div>
+<div class="ubot"><div class="ucost">${u.bought?'✓ VLASTNENÉ':'🧬 '+fmt(u.cost)+' DNA'}</div>
+${!u.bought?`<button class="ubuy"${ok?'':' disabled'}>KÚPIŤ</button>`:''}</div>`;
+if(!u.bought&&ok)d.querySelector('button').onclick=()=>buyUpg(u);
+l.appendChild(d);
+});
+if(!shown)l.innerHTML='<div style="color:rgba(255,255,255,.28);text-align:center;padding:22px;font-size:11px;letter-spacing:1px">ODOMKNITE EVOLÚCIOU</div>';
+}
+function buyUpg(u){
+if(G.dna<u.cost||u.bought)return;
+snd('upgrade');G.dna-=u.cost;u.bought=true;
+if(u.type==='ac')G.mods.actionCost*=u.val;
+if(u.type==='er')G.mods.energyRegen*=u.val;
+if(u.type==='dg')G.mods.dnaGain*=u.val;
+if(u.type==='pg')G.mods.popGrowth*=u.val;
+if(u.type==='gl')G.mods.global*=u.val;
+if(u.type==='me'){G.maxEnergy=u.val;G.clickPower+=8;}
+if(u.type==='cp')G.clickPower+=u.val;
+toast('✦ '+u.name+' odomknuté!','var(--c1)');
+burst(window.innerWidth-45,55,'#a855f7',22);
+renderUpg();markDirty();
+}
+
+// ═══════════════════════════════════════════════════════════
+// EVENTS & ACHIEVEMENTS
+// ═══════════════════════════════════════════════════════════
+function triggerEvent(){
+const v=EVENTS.filter(e=>e.cond(G));if(!v.length)return;
+const ev=v[Math.floor(Math.random()*v.length)];
+snd('event');showEv(ev.icon,ev.icon+' '+ev.title,ev.desc,ev.choices,false);
+}
+function showEv(ico,title,desc,choices,isEvo){
+G.running=false;
+document.getElementById('evico').textContent=ico;
+document.getElementById('evtitle').textContent=title;
+document.getElementById('evdesc').textContent=desc;
+document.getElementById('evbox').style.borderColor=isEvo?'rgba(168,85,247,.55)':'rgba(255,255,255,.18)';
+const ch=document.getElementById('evchoices');ch.innerHTML='';
+choices.forEach(c=>{
+const b=document.createElement('button');b.className='evbtn';b.textContent=c.label;
+b.onclick=()=>{if(c.effect)c.effect();closeEv();};ch.appendChild(b);
+});
+document.getElementById('evoverlay').style.display='flex';
+requestAnimationFrame(()=>document.getElementById('evoverlay').classList.add('active'));
+}
+function closeEv(){
+const o=document.getElementById('evoverlay');
+o.classList.remove('active');
+setTimeout(()=>{o.style.display='none';G.running=true;},280);
+}
+function evR(r,msg){
+if(r.energy!=null)G.energy=Math.min(G.maxEnergy,Math.max(0,G.energy+r.energy));
+if(r.dna!=null){G.dna=Math.max(0,G.dna+r.dna);if(r.dna>0)stats.totalDNA+=r.dna;}
+if(r.pop!=null)G.population=Math.max(1,G.population+r.pop);
+const bad=(r.energy<0||r.pop<0);
+toast(msg,bad?'var(--c3)':'var(--c5)');checkAch();markDirty();
+}
+
+function checkAch(){
+ACHIEVEMENTS.forEach(a=>{
+if(!G.achievements[a.id]&&a.req()){
+G.achievements[a.id]=true;a.bonus();snd('ach');
+showAchPop(a.name,a.desc);
+}
+});
+}
+function showAchPop(name,desc){
+const p=document.getElementById('achpop');
+document.getElementById('achname').textContent=name;
+document.getElementById('achdesc').textContent=desc;
+p.classList.add('show');
+setTimeout(()=>p.classList.remove('show'),3500);
+}
+
+let winShown=false;
+function showWin(){
+if(winShown)return;winShown=true;
+setTimeout(()=>{
+document.getElementById('winscreen').style.display='flex';
+document.getElementById('winstats').textContent=`${G.tick} cyklov · DNA: ${fmt(G.dna)} · Pop: ${fmt(G.population)} · Kliknutia: ${stats.clicks}`;
+},1200);
+}
+function toggleSettings(){
+const m=document.getElementById('settingsmodal');
+m.style.display=m.style.display==='flex'?'none':'flex';
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOASTS & VFX
+// ═══════════════════════════════════════════════════════════
+function toast(msg,col){
+const w=document.getElementById('toasts');
+const t=document.createElement('div');t.className='toast';
+if(col==='var(--c4)')t.classList.add('tg');
+else if(col==='var(--c3)')t.classList.add('tr');
+else if(col==='var(--c1)')t.classList.add('tp');
+else if(col==='var(--c5)')t.classList.add('ts');
+else if(col)t.style.borderLeftColor=col;
+t.textContent=msg;w.prepend(t);
+while(w.children.length>4)w.lastChild.remove();
+setTimeout(()=>{t.classList.add('tout');setTimeout(()=>t.remove(),330);},3800);
+}
+function ftxt(x,y,text,col){
+const e=document.createElement('div');e.className='ftxt';
+e.style.cssText=`left:${x}px;top:${y}px;color:${col||'var(--c0)'};`;
+e.textContent=text;document.body.appendChild(e);setTimeout(()=>e.remove(),1050);
+}
+function femoji(x,y,emoji){
+const e=document.createElement('div');e.className='femoji';
+e.style.cssText=`left:${x}px;top:${y}px;`;
+e.textContent=emoji;document.body.appendChild(e);setTimeout(()=>e.remove(),1350);
+}
+function spawnPassiveTick(val,col){
+const e=document.createElement('div');e.className='ptick';
+const x=window.innerWidth/2+(Math.random()*120-60);
+const y=window.innerHeight*.35+(Math.random()*30-15);
+e.style.cssText=`left:${x}px;top:${y}px;color:${col};`;
+e.textContent='+'+fmt(Math.round(val))+' ⚡';
+document.body.appendChild(e);setTimeout(()=>e.remove(),850);
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMET SYSTEM
+// ═══════════════════════════════════════════════════════════
+let cometMesh,cometActive=false;
+function initComet(){
+const g=new THREE.SphereGeometry(.5,16,16);
+const m=new THREE.MeshBasicMaterial({color:0xfbbf24});
+cometMesh=new THREE.Mesh(g,m);
+// glow aura
+const aura=new THREE.Mesh(new THREE.SphereGeometry(1.1,16,16),
+new THREE.MeshBasicMaterial({color:0xfbbf24,transparent:true,opacity:.28,blending:THREE.AdditiveBlending}));
+// outer aura
+const aura2=new THREE.Mesh(new THREE.SphereGeometry(1.8,16,16),
+new THREE.MeshBasicMaterial({color:0xffa000,transparent:true,opacity:.1,blending:THREE.AdditiveBlending}));
+// tail
+const tail=new THREE.Mesh(new THREE.ConeGeometry(.18,2.5,8),
+new THREE.MeshBasicMaterial({color:0xfbbf24,transparent:true,opacity:.22,blending:THREE.AdditiveBlending}));
+tail.rotation.z=Math.PI/2;tail.position.x=-1.1;
+cometMesh.add(aura);cometMesh.add(aura2);cometMesh.add(tail);
+scene.add(cometMesh);cometMesh.visible=false;
+}
+function spawnComet(){
+if(cometActive)return;
+cometActive=true;cometMesh.visible=true;
+cometMesh.position.set(-20,(Math.random()*10)-5,-3);
+snd('comet');
+toast("☄️ Kozmická Anomália! Ťukni na kométu!",'var(--c4)');
+document.getElementById('comethint').style.display='block';
+}
+function collectComet(){
+cometActive=false;cometMesh.visible=false;
+document.getElementById('comethint').style.display='none';
+stats.comets++;snd('event');
+burst(window.innerWidth/2,window.innerHeight/2,'#fbbf24',80);
+const pb=Math.max(15,G.population*.12);
+const db=Math.max(60,STAGES[G.stage].dnaGoal*.12);
+G.population+=pb;G.dna+=db;stats.totalDNA+=db;G.energy=G.maxEnergy;
+toast(`✨ KOMÉTA! +${fmt(pb)} Pop · +${fmt(db)} DNA · Plná Energia!`,'var(--c4)');
+checkAch();markDirty();
+}
+function startCometSpawner(){
+initComet();
+setInterval(()=>{if(G.running&&!cometActive&&Math.random()<.3)spawnComet();},28000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PASSIVE LOOP
+// ═══════════════════════════════════════════════════════════
+function startPassive(){
+setInterval(()=>{
+if(!G.running)return;
+const pm=1+G.darkMatter*.1;
+let gm=G.mods.global*pm;
+if(G.achievements['a04'])gm*=1.1;
+if(G.achievements['a05'])gm*=1.05;
+const gain=G.population*.1*(G.stage+1)*G.mods.energyRegen*gm;
+G.energy=Math.min(G.maxEnergy,G.energy+gain);
+G.tick++;
+if(G.tick%5===0)spawnPassiveTick(gain,STAGES[G.stage].color);
+checkAch();
+if(G.tick%30===0)saveGame();
+markDirty();
+},2000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// THREE.JS — AAA VISUAL ENGINE
+// ═══════════════════════════════════════════════════════════
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(55,window.innerWidth/window.innerHeight,.1,1200);
+let camTarget=12;camera.position.z=12;
+scene.fog=new THREE.FogExp2(0x000103,.0055);
+scene.background=new THREE.Color(0x000103);
+
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('glc'),antialias:true,alpha:false,powerPreference:"high-performance"});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.28;
+
+// ── BLOOM CANVAS (software bloom) ──
+const bloomCv=document.getElementById('bloom');
+const bctx=bloomCv.getContext('2d');
+bloomCv.width=window.innerWidth*.5;bloomCv.height=window.innerHeight*.5;
+
+// ── PROCEDURAL MULTI-LAYER STAR FIELD ──
+function makeStarLayer(count,spread,size,speed){
+const geo=new THREE.BufferGeometry();
+const pos=new Float32Array(count*3),col=new Float32Array(count*3),sz=new Float32Array(count);
+const palettes=[[.55,.65,1],[.8,.65,1],[1,.88,.7],[.65,.9,1],[1,1,1],[.9,.7,1]];
+for(let i=0;i<count;i++){
+const r=speed+Math.random()*(spread-speed);
+const th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+pos[i*3]=r*Math.sin(ph)*Math.cos(th);pos[i*3+1]=r*Math.sin(ph)*Math.sin(th);pos[i*3+2]=r*Math.cos(ph)*.3-40;
+const p=palettes[Math.floor(Math.random()*palettes.length)],b=.35+Math.random()*.65;
+col[i*3]=p[0]*b;col[i*3+1]=p[1]*b;col[i*3+2]=p[2]*b;
+sz[i]=i<count*.01?3.8:Math.random()*size+.3;
+}
+geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+geo.setAttribute('size',new THREE.BufferAttribute(sz,1));
+const mat=new THREE.ShaderMaterial({
+vertexColors:true,transparent:true,depthWrite:false,
+vertexShader:`attribute float size;varying vec3 vC;varying float vD;
+void main(){vC=color;vec4 mv=modelViewMatrix*vec4(position,1.);vD=-mv.z;
+gl_PointSize=size*(260.0/-mv.z);gl_Position=projectionMatrix*mv;}`,
+fragmentShader:`varying vec3 vC;varying float vD;
+void main(){float d=length(gl_PointCoord-vec2(.5));if(d>.5)discard;
+float a=smoothstep(.5,.0,d);float fog=clamp(1.-vD/800.,0.,1.);
+gl_FragColor=vec4(vC,a*a*fog);}`
+});
+return new THREE.Points(geo,mat);
+}
+const stars1=makeStarLayer(1800,280,1.2,120);
+const stars2=makeStarLayer(700,220,1.8,80);
+const stars3=makeStarLayer(200,180,2.8,60); // foreground big stars
+scene.add(stars1);scene.add(stars2);scene.add(stars3);
+
+// ── GALAXY DUST (new) ──
+{
+const N=3000,geo=new THREE.BufferGeometry();
+const pos=new Float32Array(N*3),col=new Float32Array(N*3);
+for(let i=0;i<N;i++){
+const angle=Math.random()*Math.PI*2,r=20+Math.pow(Math.random(),2)*200;
+const y=(Math.random()-.5)*30;
+pos[i*3]=Math.cos(angle)*r;pos[i*3+1]=y;pos[i*3+2]=Math.sin(angle)*r*.2-60;
+const h=.6+Math.random()*.3,s=.6,l=.3+Math.random()*.4;
+const c=new THREE.Color().setHSL(h,s,l);
+col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;
+}
+geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+scene.add(new THREE.Points(geo,new THREE.PointsMaterial({size:.06,vertexColors:true,transparent:true,opacity:.22,depthWrite:false})));
+}
+
+// ── PLANET WITH ADVANCED TEXTURE ──
+const planetGroup=new THREE.Group();
+planetGroup.position.set(1.8,-3.8,-24);scene.add(planetGroup);
+
+function makePlanetTex(stage){
+const sz=512,cv=document.createElement('canvas');cv.width=cv.height=sz;
+const cx=cv.getContext('2d');
+const pals=[
+['#020f1e','#083355','#0e5a94','#1a7ab8'], // 0 ocean
+['#020e08','#082d1a','#0e5530','#1a8048'], // 1 jungle
+['#020810','#08203a','#0e3870','#1a50a0'], // 2 deep
+['#150800','#3d1f00','#7a3e05','#ba6010'], // 3 desert
+['#0e0018','#2e0550','#5a0a9a','#8a18d0'], // 4 void
+['#000005','#020218','#05053a','#0a0a65'], // 5 cosmos
+];
+const c=pals[Math.min(stage,5)];
+// base
+const g=cx.createRadialGradient(sz*.38,sz*.32,0,sz*.5,sz*.5,sz*.72);
+g.addColorStop(0,c[3]);g.addColorStop(.3,c[2]);g.addColorStop(.65,c[1]);g.addColorStop(1,c[0]);
+cx.fillStyle=g;cx.fillRect(0,0,sz,sz);
+// terrain
+for(let i=0;i<80;i++){
+const x=Math.random()*sz,y=Math.random()*sz,r=5+Math.random()*38;
+const g2=cx.createRadialGradient(x,y,0,x,y,r);
+g2.addColorStop(0,c[0]+'cc');g2.addColorStop(1,'transparent');
+cx.fillStyle=g2;cx.beginPath();cx.arc(x,y,r,0,Math.PI*2);cx.fill();
+}
+// city lights at night (stage >= 4)
+if(stage>=4){
+cx.globalCompositeOperation='screen';
+for(let i=0;i<120;i++){
+const x=Math.random()*sz,y=Math.random()*sz,r=1+Math.random()*3;
+cx.fillStyle=`rgba(255,220,100,${.3+Math.random()*.4})`;
+cx.beginPath();cx.arc(x,y,r,0,Math.PI*2);cx.fill();
+}
+cx.globalCompositeOperation='source-over';
+}
+// specular highlights
+for(let i=0;i<22;i++){
+const x=Math.random()*sz,y=Math.random()*sz,r=8+Math.random()*22;
+const g3=cx.createRadialGradient(x,y,0,x,y,r);
+g3.addColorStop(0,c[3]+'44');g3.addColorStop(1,'transparent');
+cx.fillStyle=g3;cx.beginPath();cx.arc(x,y,r,0,Math.PI*2);cx.fill();
+}
+return new THREE.CanvasTexture(cv);
+}
+
+const planetMesh=new THREE.Mesh(
+new THREE.SphereGeometry(8,96,96),
+new THREE.MeshStandardMaterial({map:makePlanetTex(0),roughness:.7,metalness:.06,envMapIntensity:.5})
+);
+planetGroup.add(planetMesh);
+
+// Atmosphere
+const atmoMat=new THREE.MeshBasicMaterial({color:new THREE.Color(STAGES[0].color),transparent:true,opacity:.075,side:THREE.BackSide,blending:THREE.AdditiveBlending});
+const atmo1=new THREE.Mesh(new THREE.SphereGeometry(8.42,32,32),atmoMat);planetGroup.add(atmo1);
+const atmo2=new THREE.Mesh(new THREE.SphereGeometry(8.8,32,32),new THREE.MeshBasicMaterial({color:new THREE.Color(STAGES[0].color),transparent:true,opacity:.028,side:THREE.BackSide,blending:THREE.AdditiveBlending}));
+planetGroup.add(atmo2);
+const atmo3=new THREE.Mesh(new THREE.SphereGeometry(9.2,32,32),new THREE.MeshBasicMaterial({color:new THREE.Color(STAGES[0].color),transparent:true,opacity:.010,side:THREE.BackSide,blending:THREE.AdditiveBlending}));
+planetGroup.add(atmo3);
+
+// Cloud layer
+const cloudCanvas=document.createElement('canvas');cloudCanvas.width=cloudCanvas.height=512;
+const cctx=cloudCanvas.getContext('2d');
+for(let i=0;i<65;i++){
+const x=Math.random()*512,y=Math.random()*512,r=8+Math.random()*32;
+const g=cctx.createRadialGradient(x,y,0,x,y,r);
+g.addColorStop(0,'rgba(255,255,255,.3)');g.addColorStop(1,'transparent');
+cctx.fillStyle=g;cctx.beginPath();cctx.arc(x,y,r,0,Math.PI*2);cctx.fill();
+}
+const clouds=new THREE.Mesh(new THREE.SphereGeometry(8.25,32,32),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cloudCanvas),transparent:true,opacity:.26,depthWrite:false}));
+planetGroup.add(clouds);
+
+// Asteroid ring
+const ring=new THREE.Points(new THREE.TorusGeometry(14,.22,8,200),new THREE.PointsMaterial({color:0x888888,size:.07,transparent:true,opacity:.42}));
+ring.rotation.x=Math.PI/2.15;planetGroup.add(ring);
+
+// second thinner ring
+const ring2=new THREE.Points(new THREE.TorusGeometry(17,.1,8,160),new THREE.PointsMaterial({color:0x606060,size:.05,transparent:true,opacity:.25}));
+ring2.rotation.x=Math.PI/1.9;planetGroup.add(ring2);
+
+// ── ORGANISM BUILDER ──
+const orgGroup=new THREE.Group();scene.add(orgGroup);
+let orgMeshes=[],orgPulse=1;
+
+function buildOrganism(stage){
+orgMeshes.forEach(o=>orgGroup.remove(o.m));orgMeshes=[];
+const col=new THREE.Color(STAGES[stage].color);
+const solid=new THREE.MeshStandardMaterial({
+color:col,emissive:col,emissiveIntensity:.55,
+roughness:.12,metalness:.25,
+});
+const holo=new THREE.MeshBasicMaterial({
+color:col,transparent:true,opacity:.1,
+blending:THREE.AdditiveBlending,side:THREE.FrontSide,depthWrite:false
+});
+const wire=new THREE.MeshBasicMaterial({
+color:col,wireframe:true,transparent:true,opacity:.6
+});
+const wire2=new THREE.MeshBasicMaterial({
+color:col,wireframe:true,transparent:true,opacity:.25
+});
+
+let meshDefs=[];
+switch(stage){
+case 0: meshDefs=[
+[new THREE.SphereGeometry(.85,48,48),solid,.012,.018],
+[new THREE.IcosahedronGeometry(1.5,1),wire,-.022,-.012],
+[new THREE.SphereGeometry(2.1,32,32),holo,.005,.015],
+]; break;
+case 1: meshDefs=[
+[new THREE.TorusKnotGeometry(.95,.3,100,14),solid,.01,.02],
+[new THREE.TorusKnotGeometry(1.55,.06,100,14),wire,-.018,-.008],
+[new THREE.SphereGeometry(.42,16,16),new THREE.MeshBasicMaterial({color:0xffffff,emissive:new THREE.Color(0xffffff),emissiveIntensity:2}),.0,0],
+[new THREE.SphereGeometry(2.3,32,32),holo,.004,.012],
+]; break;
+case 2: meshDefs=[
+[new THREE.DodecahedronGeometry(1.25,0),solid,.014,.016],
+[new THREE.IcosahedronGeometry(1.85,1),wire,-.02,-.01],
+[new THREE.OctahedronGeometry(2.4,0),wire2,.008,.022],
+[new THREE.SphereGeometry(2.6,32,32),holo,.003,.013],
+]; break;
+case 3: {
+meshDefs=[
+[new THREE.OctahedronGeometry(1.1,0),solid,.012,.02],
+[new THREE.SphereGeometry(2.8,32,32),holo,.003,.01],
+];
+// orbital rings
+[[2,.04,16,80,Math.PI/2,0],[2.4,.03,16,80,0,Math.PI/2],[1.8,.03,16,60,Math.PI/4,Math.PI/4]].forEach(([r,t,ts,sg,rx,ry])=>{
+const m=new THREE.Mesh(new THREE.TorusGeometry(r,t,ts,sg),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.55}));
+m.rotation.x=rx;m.rotation.y=ry;
+meshDefs.push([m.geometry,m.material,.0,ry===0?.02:ry===Math.PI/2?.015:.018,m]);
+});
+break;}
+case 4: meshDefs=[
+[new THREE.BoxGeometry(1.75,1.75,1.75),solid,.013,.015],
+[new THREE.BoxGeometry(2.7,2.7,2.7),wire,-.019,-.009],
+[new THREE.OctahedronGeometry(2,1),wire2,.009,.02],
+[new THREE.SphereGeometry(3.1,32,32),holo,.003,.011],
+]; break;
+case 5: meshDefs=[
+[new THREE.IcosahedronGeometry(1.2,2),solid,.01,.018],
+[new THREE.TorusKnotGeometry(2.1,.09,160,18),wire,-.02,-.01],
+[new THREE.IcosahedronGeometry(2.8,1),wire2,.007,.015],
+[new THREE.SphereGeometry(3.4,32,32),holo,.002,.009],
+]; break;
+}
+meshDefs.forEach(([g,m,rx,ry,existingMesh])=>{
+const mesh=existingMesh||new THREE.Mesh(g,m);
+orgGroup.add(mesh);orgMeshes.push({m:mesh,rx,ry});
+});
+}
+
+// ── NEBULA (multi-plane volumetric) ──
+let nebulaMeshes=[];
+function buildNebula(stage){
+nebulaMeshes.forEach(m=>scene.remove(m));nebulaMeshes=[];
+const col=STAGES[stage].color;
+// Large background planes
+for(let i=0;i<8;i++){
+const size=45+Math.random()*30;
+const m=new THREE.Mesh(
+new THREE.PlaneGeometry(size,size),
+new THREE.MeshBasicMaterial({color:col,transparent:true,
+opacity:.012+Math.random()*.018,blending:THREE.AdditiveBlending,side:THREE.DoubleSide})
+);
+m.position.set((Math.random()-.5)*35,(Math.random()-.5)*25,-30-Math.random()*20);
+m.rotation.z=Math.random()*Math.PI;
+m.rotation.x=(Math.random()-.5)*.5;
+scene.add(m);nebulaMeshes.push(m);
+}
+// Small bright wisps
+for(let i=0;i<4;i++){
+const m=new THREE.Mesh(
+new THREE.PlaneGeometry(12+Math.random()*8,12+Math.random()*8),
+new THREE.MeshBasicMaterial({color:col,transparent:true,
+opacity:.04+Math.random()*.03,blending:THREE.AdditiveBlending,side:THREE.DoubleSide})
+);
+m.position.set((Math.random()-.5)*14,(Math.random()-.5)*10,-12-Math.random()*8);
+m.rotation.z=Math.random()*Math.PI;
+scene.add(m);nebulaMeshes.push(m);
+}
+}
+
+// ── ENV UPDATE ──
+function updateEnv(){
+const c=new THREE.Color(STAGES[G.stage].color);
+atmoMat.color=c;atmo2.material.color=c;atmo3.material.color=c;
+planetMesh.material.map=makePlanetTex(G.stage);
+planetMesh.material.needsUpdate=true;
+if(fltMat)fltMat.color=c;
+scene.fog.color=new THREE.Color(0x000103);
+}
+
+// ── BIO PARTICLES ──
+const FLT=150;
+const fltGeo=new THREE.BufferGeometry();
+const fltPos=new Float32Array(FLT*3),fltPh=new Float32Array(FLT),fltSp=new Float32Array(FLT),fltR=new Float32Array(FLT);
+for(let i=0;i<FLT;i++){
+fltPh[i]=Math.random()*Math.PI*2;fltSp[i]=.4+Math.random()*1.6;fltR[i]=.7+Math.random()*.9;
+fltPos[i*3]=(Math.random()-.5)*2;fltPos[i*3+1]=(Math.random()-.5)*2;fltPos[i*3+2]=(Math.random()-.5)*1.5;
+}
+fltGeo.setAttribute('position',new THREE.BufferAttribute(fltPos,3));
+const fltMat=new THREE.PointsMaterial({size:.055,color:new THREE.Color(STAGES[0].color),transparent:true,opacity:.82,sizeAttenuation:true});
+scene.add(new THREE.Points(fltGeo,fltMat));
+
+// DNA helix display (rotates behind organism)
+{
+const N=240,geo=new THREE.BufferGeometry();
+const pos=new Float32Array(N*3),col=new Float32Array(N*3);
+for(let i=0;i<N;i++){
+const t=i/N*Math.PI*8,strand=i%2===0?1:-1;
+pos[i*3]=Math.cos(t+strand*Math.PI*.5)*2.2;
+pos[i*3+1]=(i/N)*5-2.5;
+pos[i*3+2]=Math.sin(t+strand*Math.PI*.5)*2.2-4;
+const c=new THREE.Color().setHSL(t/(Math.PI*8)+.6,1,.65);
+col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;
+}
+geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+const helixPoints=new THREE.Points(geo,new THREE.PointsMaterial({size:.09,vertexColors:true,transparent:true,opacity:.28,depthWrite:false}));
+scene.add(helixPoints);
+}
+
+// ── LIGHTS ──
+scene.add(new THREE.AmbientLight(0x112233,.2));
+const pointLight=new THREE.PointLight(0x22d3ee,4,130);pointLight.position.set(9,9,-7);scene.add(pointLight);
+const sunLight=new THREE.DirectionalLight(0xfff9ea,1.1);sunLight.position.set(45,12,-45);scene.add(sunLight);
+const rimLight=new THREE.PointLight(0xff2299,1.6,65);rimLight.position.set(-11,-5,5);scene.add(rimLight);
+const fillLight=new THREE.PointLight(0x22d3ee,.85,32);fillLight.position.set(0,0,5);scene.add(fillLight);
+const backLight=new THREE.PointLight(0x4433ff,.6,40);backLight.position.set(0,-8,-8);scene.add(backLight);
+
+// ── 2D SPARK ENGINE ──
+const pcv=document.getElementById('pc');const pctx=pcv.getContext('2d');
+pcv.width=window.innerWidth;pcv.height=window.innerHeight;
+
+const SPARK_POOL=600;let sparkCount=0;
+const sparkPool=Array.from({length:SPARK_POOL},()=>({x:0,y:0,vx:0,vy:0,life:0,col:'',size:0,active:false}));
+function burst(x,y,col,n){
+for(let i=0;i<n;i++){
+const s=sparkPool[sparkCount%SPARK_POOL];sparkCount++;
+const a=Math.random()*Math.PI*2,sp=1.2+Math.random()*5;
+s.x=x;s.y=y;s.vx=Math.cos(a)*sp;s.vy=Math.sin(a)*sp-1.2;
+s.life=1;s.col=col;s.size=1.2+Math.random()*3.2;s.active=true;
+}
+}
+function drawSparks(){
+pctx.clearRect(0,0,pcv.width,pcv.height);
+sparkPool.forEach(s=>{
+if(!s.active)return;
+s.x+=s.vx;s.y+=s.vy;s.vy+=.06;s.vx*=.985;s.life-=.019;
+if(s.life<=0){s.active=false;return;}
+pctx.globalAlpha=s.life*.9;
+pctx.fillStyle=s.col;
+pctx.shadowBlur=8;pctx.shadowColor=s.col;
+pctx.beginPath();pctx.arc(s.x,s.y,s.size*s.life,0,Math.PI*2);pctx.fill();
+});
+pctx.shadowBlur=0;pctx.globalAlpha=1;
+}
+
+// ── SOFTWARE BLOOM (sample downscale + draw) ──
+function drawBloom(){
+const W=bloomCv.width,H=bloomCv.height;
+bctx.clearRect(0,0,W,H);
+bctx.filter='blur(6px)';
+bctx.drawImage(renderer.domElement,0,0,W,H);
+bctx.filter='none';
+}
+
+// ── RAYCASTER ──
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+window.addEventListener('pointerdown',e=>{
+if(!G.running)return;
+const t=e.target;
+if(t.closest('#bottomwrap')||t.closest('#topbar')||t.closest('#upgpanel')||
+t.closest('#evoverlay')||t.closest('#settingsmodal')||
+t.closest('.cbtn')||t.closest('#winscreen')||t.tagName==='BUTTON')return;
+mouse.x=(e.clientX/window.innerWidth)*2-1;
+mouse.y=-(e.clientY/window.innerHeight)*2+1;
+ray.setFromCamera(mouse,camera);
+if(cometActive&&cometMesh&&ray.intersectObject(cometMesh,true).length>0){collectComet();return;}
+if(ray.intersectObjects(orgGroup.children,true).length>0){
+stats.clicks++;if(!AC||AC.state==='suspended')initAudio();
+updateCombo(true);
+orgPulse=1.42;
+const pm=1+G.darkMatter*.1;
+const comboMult=1+G.combo*.35;
+const fc=G.clickPower*pm*comboMult;
+G.energy=Math.min(G.maxEnergy,G.energy+fc);
+stats.totalEnergy+=fc;
+burst(e.clientX,e.clientY,STAGES[G.stage].color,9);
+ftxt(e.clientX-22,e.clientY-36,'+'+fmt(Math.round(fc))+(G.combo>=2?' ×'+G.combo:'')+'⚡',STAGES[G.stage].color);
+if(G.combo>=2)femoji(e.clientX+12,e.clientY-18,'⚡');
+snd('click');checkAch();markDirty();
+}
+});
+
+// ═══════════════════════════════════════════════════════════
+// START GAME
+// ═══════════════════════════════════════════════════════════
+function startGame(){
+initAudio();
+const loaded=loadGame();
+const intro=document.getElementById('intro');
+intro.style.opacity='0';
+setTimeout(()=>{
+intro.style.display='none';
+document.getElementById('hud').style.display='block';
+document.getElementById('ringwrap').style.display='block';
+document.getElementById('btnset').onclick=toggleSettings;
+document.getElementById('btnupg').onclick=toggleUpg;
+if(G.darkMatter>0){
+const dm=document.getElementById('dmbadge');
+dm.style.display='block';
+dm.textContent=`🌌 ${G.darkMatter} TH ×${(1+G.darkMatter*.1).toFixed(1)}`;
+}
+G.running=true;
+buildOrganism(G.stage);buildNebula(G.stage);updateEnv();syncDrone();
+renderActions();renderUpg();markDirty();
+startPassive();startCometSpawner();
+toast(loaded?'▶ Uložená hra načítaná.':'✦ Systém inicializovaný. Bunkový cyklus začína.','var(--c0)');
+},900);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN RENDER LOOP
+// ═══════════════════════════════════════════════════════════
+let time=0,frameCount=0;
+function animate(){
+requestAnimationFrame(animate);
+time+=.0075;frameCount++;
+// smooth display
+if(G.running){
+const sp=.10;
+G.display.energy=lerp(G.display.energy,G.energy,sp);
+G.display.dna=lerp(G.display.dna,G.dna,sp);
+G.display.pop=lerp(G.display.pop,G.population,sp);
+markDirty();
+}
+updateHUD();
+
+// Organism animation
+orgPulse=lerp(orgPulse,1,.075);
+orgMeshes.forEach((o,i)=>{
+o.m.rotation.x+=o.rx;o.m.rotation.y+=o.ry;
+const sc=(1+Math.sin(time*1.85+i*.72)*.048)*orgPulse;
+o.m.scale.set(sc,sc,sc);
+if(o.m.material&&o.m.material.emissiveIntensity!==undefined)
+o.m.material.emissiveIntensity=.5+Math.sin(time*1.65+i)*.18;
+});
+orgGroup.position.y=Math.sin(time*1.15)*.24;
+orgGroup.position.x=Math.sin(time*.62)*.08;
+orgGroup.rotation.y=Math.sin(time*.18)*.06;
+
+// Bio particles
+const fp=fltGeo.attributes.position.array;
+for(let i=0;i<FLT;i++){
+const ph=fltPh[i]+time*fltSp[i]*.25;
+const r=fltR[i]+G.stage*.09+Math.sin(ph*.65+i)*.4;
+fp[i*3]=Math.sin(ph*1.1+i*.48)*r;
+fp[i*3+1]=Math.cos(ph*.88+i*.32)*r*.78;
+fp[i*3+2]=Math.sin(ph*1.28)*.62;
+}
+fltGeo.attributes.position.needsUpdate=true;
+fltMat.opacity=.55+Math.sin(time*.82)*.27;
+fltMat.size=.045+G.stage*.004;
+
+// Planet
+planetMesh.rotation.y+=.00045;
+atmo1.rotation.y-=.00028;atmo2.rotation.x+=.00018;atmo3.rotation.y+=.00012;
+clouds.rotation.y+=.00065;
+ring.rotation.z-=.00035;ring2.rotation.z+=.00022;
+
+// Stars parallax
+const px=camera.position.x,py=camera.position.y;
+stars1.position.x=-px*2;stars1.position.y=-py*2;
+stars2.position.x=-px*3.5;stars2.position.y=-py*3.5;
+stars3.position.x=-px*1.2;stars3.position.y=-py*1.2;
+
+// Nebula
+nebulaMeshes.forEach((m,i)=>{
+m.rotation.z+=.00015*(i%2?1:-1);
+m.position.x+=Math.sin(time*.32+i)*.007;
+m.position.y+=Math.cos(time*.24+i*.7)*.005;
+});
+
+// Comet
+if(cometActive&&cometMesh){
+cometMesh.position.x+=.07;
+cometMesh.position.y+=Math.sin(time*4.2)*.038;
+cometMesh.rotation.y+=.05;
+if(cometMesh.position.x>22){
+cometActive=false;cometMesh.visible=false;
+document.getElementById('comethint').style.display='none';
+}
+}
+
+// Camera
+camera.position.x=Math.sin(time*.16)*.44;
+camera.position.y=Math.cos(time*.11)*.27;
+camera.position.z=lerp(camera.position.z,camTarget,.038);
+camera.lookAt(0,0,0);
+
+// Lights
+pointLight.position.x=Math.cos(time*.38)*7;
+pointLight.position.y=Math.sin(time*.52)*5.5;
+pointLight.position.z=Math.sin(time*.24)*4+2;
+fillLight.intensity=.8+Math.sin(time*1.3)*.35;
+rimLight.position.x=-11+Math.sin(time*.28)*3;
+
+renderer.render(scene,camera);
+// bloom every 2nd frame for performance
+if(frameCount%2===0)drawBloom();
+drawSparks();
+}
+animate();
+
+// ══════════════════════════════════════════════════════════════
+// RESEARCH SYSTEM (permanent upgrades, survive prestige)
+// ══════════════════════════════════════════════════════════════
+let RESEARCH = [
+{id:'r01',req:0,name:"Termálne Senzory", desc:"Pasívna energia +25% navždy.", costE:500, type:'er', val:1.25,done:false,icon:"🌡️"},
+{id:'r02',req:0,name:"Genomická Analýza", desc:"DNA zisk +20% navždy.", costE:800, type:'dg', val:1.20,done:false,icon:"🔬"},
+{id:'r03',req:1,name:"Populačný Protokol", desc:"Pop rast +25% navždy.", costE:1400, type:'pg', val:1.25,done:false,icon:"👥"},
+{id:'r04',req:2,name:"Kvantová Pamäť", desc:"Klik +6 energie navždy.", costE:2400, type:'cp', val:6, done:false,icon:"🧮"},
+{id:'r05',req:3,name:"Adaptívny Metabol.", desc:"Max energia +250 navždy.", costE:4500, type:'me', val:250, done:false,icon:"⚡"},
+{id:'r06',req:4,name:"Neuro-Interface", desc:"Všetko +18% navždy.", costE:8000, type:'gl', val:1.18,done:false,icon:"🧠"},
+{id:'r07',req:5,name:"Singularity Core", desc:"Klik +30 energie + DNA +35%.", costE:18000, type:'combo',val:0, done:false,icon:"⚛️"},
+];
+
+// ══════════════════════════════════════════════════════════════
+// PRESTIGE UPGRADES (bought with Dark Matter, truly permanent)
+// ══════════════════════════════════════════════════════════════
+const PRESTIGE_UPG = [
+{id:'p01',name:"Primordial Klik", desc:"Klik +18 energie natrvalo.", cost:2, type:'cp', val:18, bought:false,icon:"👆"},
+{id:'p02',name:"Dark DNA", desc:"DNA zisk +45% natrvalo.", cost:3, type:'dg', val:1.45,bought:false,icon:"🧬"},
+{id:'p03',name:"Void Population", desc:"Pop rast +50% natrvalo.", cost:3, type:'pg', val:1.5, bought:false,icon:"👥"},
+{id:'p04',name:"Dark Reactor", desc:"Pasívna energia +90% natrvalo.", cost:4, type:'er', val:1.9, bought:false,icon:"⚡"},
+{id:'p05',name:"Omega Matrix", desc:"Všetko +45% natrvalo.", cost:6, type:'gl', val:1.45,bought:false,icon:"🌌"},
+{id:'p06',name:"Void Capacitor", desc:"Max energia +600 natrvalo.", cost:4, type:'me', val:600, bought:false,icon:"🔋"},
+{id:'p07',name:"Quantum Trigger", desc:"Klik Combo bonus ×1.5.", cost:8, type:'combo',val:1.5, bought:false,icon:"⚛️"},
+{id:'p08',name:"Dark Amplifier", desc:"TH zisk ×2 pri ďalšom Prestige.",cost:10,type:'dmx', val:2, bought:false,icon:"☠️"},
+];
+
+// Additional achievements beyond basic ones
+const EXTRA_ACHIEVEMENTS = [
+{id:'ea01',name:"Výskumník", desc:"Dokonči 3 výskumy.", req:()=>RESEARCH.filter(r=>r.done).length>=3, bonus:()=>{G.mods.global*=1.08;},bonusTxt:"Všetko +8%"},
+{id:'ea02',name:"Kométar", desc:"Chyť 3 kométy.", req:()=>stats.comets>=3, bonus:()=>{G.clickPower+=25;}, bonusTxt:"Klik +25"},
+{id:'ea03',name:"Singularita", desc:"Dosiahni Štádium 6.", req:()=>G.stage>=5, bonus:()=>{G.mods.dnaGain*=1.2;},bonusTxt:"DNA +20%"},
+{id:'ea04',name:"Prestige", desc:"Prvý Prestige dokončený.", req:()=>G.darkMatter>=1, bonus:()=>{G.maxEnergy+=200;}, bonusTxt:"Max E +200"},
+{id:'ea05',name:"Energia∞", desc:"Max energia nad 1 000.", req:()=>G.maxEnergy>=1000, bonus:()=>{G.mods.energyRegen*=1.3;},bonusTxt:"Pasív E +30%"},
+{id:'ea06',name:"Event Hunter",desc:"10 náhodných udalostí.", req:()=>(stats.eventsSeen||0)>=10, bonus:()=>{G.mods.dnaGain*=1.12;},bonusTxt:"DNA +12%"},
+];
+
+// ══════════════════════════════════════════════════════════════
+// EXTENDED SAVE/LOAD (includes research + prestige)
+// ══════════════════════════════════════════════════════════════
+const _origSave = saveGame;
+function saveGame(){
+try{
+const base = JSON.parse(localStorage.getItem(SK)||'{}');
+base.RESEARCH = RESEARCH;
+base.PRESTIGE_UPG = PRESTIGE_UPG.map(u=>({id:u.id,bought:u.bought}));
+base.extraAch = EXTRA_ACHIEVEMENTS.map(a=>({id:a.id,done:!!G.achievements[a.id]}));
+base.stats = stats;
+base.G = G;
+base.UPGRADES = UPGRADES;
+localStorage.setItem(SK, JSON.stringify(base));
+toast("💾 Uložené.","var(--c0)");
+}catch(e){}
+}
+const _origLoad = loadGame;
+function loadGame(){
+try{
+const d = JSON.parse(localStorage.getItem(SK)||'null');
+if(!d) return false;
+G = Object.assign(G, d.G||{});G.combo=0;
+if(d.UPGRADES) UPGRADES = d.UPGRADES;
+if(d.RESEARCH) RESEARCH = d.RESEARCH;
+if(d.PRESTIGE_UPG) d.PRESTIGE_UPG.forEach(pu=>{const u=PRESTIGE_UPG.find(x=>x.id===pu.id);if(u)u.bought=pu.bought;});
+if(d.extraAch) d.extraAch.forEach(ea=>{if(ea.done)G.achievements[ea.id]=true;});
+if(d.stats) stats = Object.assign(stats,d.stats);
+G.display.energy=G.energy;G.display.dna=G.dna;G.display.pop=G.population;
+applyPermanentMods();
+return true;
+}catch(e){return false;}
+}
+
+function applyPermanentMods(){
+// Re-apply bought research
+RESEARCH.filter(r=>r.done).forEach(r=>_applyResearchMod(r));
+// Re-apply bought prestige upgrades
+PRESTIGE_UPG.filter(u=>u.bought).forEach(u=>_applyPrestigeMod(u));
+}
+
+function _applyResearchMod(r){
+if(r.type==='er')G.mods.energyRegen*=r.val;
+if(r.type==='dg')G.mods.dnaGain*=r.val;
+if(r.type==='pg')G.mods.popGrowth*=r.val;
+if(r.type==='cp')G.clickPower+=r.val;
+if(r.type==='me'){G.maxEnergy+=r.val;}
+if(r.type==='gl')G.mods.global*=r.val;
+if(r.type==='combo'){G.clickPower+=30;G.mods.dnaGain*=1.35;}
+}
+
+function _applyPrestigeMod(u){
+if(u.type==='cp')G.clickPower+=u.val;
+if(u.type==='dg')G.mods.dnaGain*=u.val;
+if(u.type==='pg')G.mods.popGrowth*=u.val;
+if(u.type==='er')G.mods.energyRegen*=u.val;
+if(u.type==='gl')G.mods.global*=u.val;
+if(u.type==='me')G.maxEnergy+=u.val;
+if(u.type==='combo')G.comboMult=(G.comboMult||1)*u.val;
+}
+
+// ══════════════════════════════════════════════════════════════
+// RESEARCH UI
+// ══════════════════════════════════════════════════════════════
+function toggleResearch(){
+const r=document.getElementById('researchwrap');
+r.classList.toggle('open');
+document.getElementById('upgpanel').classList.remove('open');
+if(r.classList.contains('open'))renderResearch();
+}
+function renderResearch(){
+const l=document.getElementById('reslist');if(!l)return;l.innerHTML='';
+let shown=0;
+RESEARCH.forEach(r=>{
+if(G.stage<r.req&&!r.done)return;shown++;
+const ok=G.energy>=r.costE&&!r.done;
+const d=document.createElement('div');
+d.className='resitem'+(r.done?' resbought':'')+((!ok&&!r.done)?' reslocked':'');
+d.innerHTML=`<div class="utop"><div class="uico">${r.icon}</div>
+<div><div class="rname">${r.name}</div><div class="rdesc">${r.desc}</div></div></div>
+<div class="rbot">
+<div class="rcost">${r.done?'✓ HOTOVO':'⚡ '+fmt(r.costE)+' ENR'}</div>
+${!r.done?`<button class="resbuy"${ok?'':' disabled'}>SKÚMAŤ</button>`:''}
+</div>`;
+if(!r.done&&ok)d.querySelector('button').onclick=()=>buyResearch(r);
+l.appendChild(d);
+});
+if(!shown)l.innerHTML='<div style="color:rgba(255,255,255,.25);text-align:center;padding:22px;font-size:11px;">Odomknite evolúciou ↑</div>';
+}
+function buyResearch(r){
+if(G.energy<r.costE||r.done)return;
+snd('upgrade');G.energy-=r.costE;r.done=true;
+_applyResearchMod(r);
+toast('🔬 '+r.name,'var(--c0)');
+burst(40,window.innerHeight/2,'#22d3ee',20);
+renderResearch();checkAllAch();markDirty();
+}
+
+// ══════════════════════════════════════════════════════════════
+// PRESTIGE SHOP UI
+// ══════════════════════════════════════════════════════════════
+function togglePrestigeShop(){
+const p=document.getElementById('prestigeshop');
+p.classList.toggle('open');
+if(p.classList.contains('open'))renderPrestigeShop();
+}
+function renderPrestigeShop(){
+const dmEl=document.getElementById('psp-dmcount');
+if(dmEl)dmEl.textContent=G.darkMatter+' TH';
+const l=document.getElementById('psplist');if(!l)return;l.innerHTML='';
+PRESTIGE_UPG.forEach(u=>{
+const ok=G.darkMatter>=u.cost&&!u.bought;
+const d=document.createElement('div');
+d.className='pspitem'+(u.bought?' pspbought':'')+((!ok&&!u.bought)?' psplocked':'');
+d.innerHTML=`<div class="pspico">${u.icon}</div>
+<div class="pspname">${u.name}</div>
+<div class="pspdesc">${u.desc}</div>
+<div class="pspcost">${u.bought?'✓ VLASTNENÉ':u.cost+' TH'}</div>
+${!u.bought?`<button class="pspbuy"${ok?'':' disabled'}>KÚPIŤ</button>`:''}`;
+if(!u.bought&&ok)d.querySelector('button').onclick=()=>buyPrestigeUpg(u);
+l.appendChild(d);
+});
+}
+function buyPrestigeUpg(u){
+if(G.darkMatter<u.cost||u.bought)return;
+snd('upgrade');G.darkMatter-=u.cost;u.bought=true;
+_applyPrestigeMod(u);
+toast('⚛ Prestige: '+u.name,'var(--c3)');
+burst(window.innerWidth/2,window.innerHeight/2,'#ef4444',35);
+renderPrestigeShop();markDirty();
+}
+
+// Override doPrestige to confirmPrestige flow
+function confirmPrestige(){
+if(!confirm("KVANTOVÁ SINGULARITA: Zničíš tento vesmír a získaš Temnú Hmotu. Pokračovať?"))return;
+snd('evolve');
+const dmMult=PRESTIGE_UPG.find(u=>u.id==='p08'&&u.bought)?2:1;
+const dmGain=(1+Math.floor(G.dna/50000))*dmMult;
+G.darkMatter+=dmGain;
+toast(`⚛ Singularita! +${dmGain} TH (${G.darkMatter} celkom)`,'var(--c3)');
+setTimeout(()=>{
+G.stage=0;G.energy=100;G.dna=0;G.population=1;G.tick=0;G.combo=0;
+G.maxEnergy=150;G.clickPower=2;
+G.mods={energyRegen:1,actionCost:1,dnaGain:1,popGrowth:1,global:1};
+UPGRADES.forEach(u=>u.bought=false);
+applyPermanentMods();
+saveGame();location.reload();
+},1800);
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXTRA ACHIEVEMENTS
+// ══════════════════════════════════════════════════════════════
+function checkAllAch(){
+// Original achievements
+checkAch();
+// Extra achievements
+EXTRA_ACHIEVEMENTS.forEach(a=>{
+if(!G.achievements[a.id]&&a.req()){
+G.achievements[a.id]=true;a.bonus();snd('ach');
+showAchPop(a.name,a.bonusTxt);
+}
+});
+}
+function showAchPop(name,bonus){
+const p=document.getElementById('achpop');if(!p)return;
+document.getElementById('achname').textContent=name;
+document.getElementById('achdesc').textContent='Bonus: '+bonus;
+p.classList.add('show');setTimeout(()=>p.classList.remove('show'),3800);
+}
+
+// ══════════════════════════════════════════════════════════════
+// LORE TOOLTIP (shows stage lore on evolve)
+// ══════════════════════════════════════════════════════════════
+const STAGE_LORE=[
+"Rok -4 200 000 000. Prvé organické molekuly v pradávnom oceáne Zeta-4.",
+"Rok -600 000 000. Prvé mnohobuňkové organizmy v hlbokých moriach.",
+"Rok -380 000 000. Obojživelníci zdolávajú bariéru vody a súše.",
+"Rok -2 000 000. Prvé kamenné nástroje. Oheň ako sociálna súdržnosť.",
+"Rok 2150 n.l. Megamestá, kvantová veda, globálna kultúra.",
+"Rok 2890 n.l. Prvá medzihviezdna kolonizácia. Dysonova sféra online.",
+];
+function showLoreTip(stageIdx){
+const el=document.getElementById('loretip');if(!el)return;
+el.textContent=STAGE_LORE[stageIdx]||'';
+el.style.display='block';
+el.style.animation='none';
+requestAnimationFrame(()=>{el.style.animation='lorefade 4s ease-in-out forwards';});
+setTimeout(()=>el.style.display='none',4100);
+}
+
+// ══════════════════════════════════════════════════════════════
+// PASSIVE TICK VFX
+// ══════════════════════════════════════════════════════════════
+function spawnPassiveTick(val,col){
+const e=document.createElement('div');e.className='ptick';
+const x=window.innerWidth/2+(Math.random()*140-70);
+const y=window.innerHeight*.34+(Math.random()*28);
+e.style.cssText=`left:${Math.round(x)}px;top:${Math.round(y)}px;color:${col};`;
+e.textContent='+'+fmt(Math.round(val))+'⚡';
+document.body.appendChild(e);setTimeout(()=>e.remove(),900);
+}
+
+// ══════════════════════════════════════════════════════════════
+// PATCH startGame to wire new buttons + extended achievements
+// ══════════════════════════════════════════════════════════════
+const _origStartGame = startGame;
+function startGame(){
+initAudio();
+const loaded=loadGame();
+const intro=document.getElementById('intro');
+intro.style.opacity='0';
+setTimeout(()=>{
+intro.style.display='none';
+document.getElementById('hud').style.display='block';
+document.getElementById('ringwrap').style.display='block';
+document.getElementById('btnset').onclick=toggleSettings;
+document.getElementById('btnupg').onclick=toggleUpg;
+// Wire new research button
+const rb=document.getElementById('btnresearch');
+if(rb)rb.onclick=toggleResearch;
+if(G.darkMatter>0){
+const dm=document.getElementById('dmbadge');
+dm.style.display='block';
+dm.textContent=`🌌 ${G.darkMatter} TH ×${(1+G.darkMatter*.1).toFixed(1)}`;
+}
+G.running=true;
+buildOrganism(G.stage);buildNebula(G.stage);updateEnv();syncDrone();
+renderActions();renderUpg();renderResearch();markDirty();
+startPassive();startCometSpawner();
+showLoreTip(G.stage);
+toast(loaded?'▶ Uložená hra načítaná.':'✦ Systém inicializovaný. Bunkový cyklus začína.','var(--c0)');
+},900);
+}
+
+// ══════════════════════════════════════════════════════════════
+// PATCH passive loop to: tick VFX + extra ach checks + notify
+// ══════════════════════════════════════════════════════════════
+function startPassive(){
+setInterval(()=>{
+if(!G.running)return;
+const pm=1+G.darkMatter*.1;
+let gm=G.mods.global*pm;
+if(G.achievements['a04'])gm*=1.1;
+if(G.achievements['a05'])gm*=1.05;
+const gain=G.population*.1*(G.stage+1)*G.mods.energyRegen*gm;
+G.energy=Math.min(G.maxEnergy,G.energy+gain);
+G.tick++;
+if(G.tick%4===0)spawnPassiveTick(gain,STAGES[G.stage].color);
+checkAllAch();
+if(G.tick%30===0)saveGame();
+// Notify badge: affordable upgrades?
+const btnUpg=document.getElementById('btnupg');
+if(btnUpg){
+const hasAffordable=UPGRADES.some(u=>!u.bought&&G.stage>=u.req&&G.dna>=u.cost);
+btnUpg.classList.toggle('notify',hasAffordable);
+}
+markDirty();
+},2000);
+}
+
+// ══════════════════════════════════════════════════════════════
+// PATCH doEvolve to show lore + trigger extra ach
+// ══════════════════════════════════════════════════════════════
+const _origDoEvolve = doEvolve;
+function doEvolve(){
+if(G.stage>=5)return;
+if(!AC)initAudio();
+snd('evolve');
+G.stage++;G.dna=0;stats.evolutions=(stats.evolutions||0)+1;
+const ns=STAGES[G.stage];
+buildOrganism(G.stage);buildNebula(G.stage);updateEnv();syncDrone();
+if(fltMat)fltMat.color=new THREE.Color(ns.color);
+if(pointLight)pointLight.color=new THREE.Color(ns.color);
+camTarget=4;setTimeout(()=>camTarget=12,1100);
+const cx=window.innerWidth/2,cy=window.innerHeight/2;
+for(let i=0;i<14;i++)setTimeout(()=>burst(cx+(Math.random()-.5)*380,cy+(Math.random()-.5)*330,ns.color,45),i*95);
+const mf=document.getElementById('mflash');if(mf){mf.classList.add('flash');setTimeout(()=>mf.classList.remove('flash'),180);}
+renderActions();renderUpg();renderResearch();saveGame();
+showLoreTip(G.stage);
+showEv(ns.icon||"🧬","✦ "+ns.name+" ✦",ns.desc,[{label:"Pokračovať →",effect:null}],true);
+checkAllAch();markDirty();
+}
+
+// ══════════════════════════════════════════════════════════════
+// PATCH updateHUD: add prestige DM display + stats box
+// ══════════════════════════════════════════════════════════════
+const _origUpdateHUD = updateHUD;
+function updateHUD(){
+if(!_dirty)return;_dirty=false;
+const s=STAGES[G.stage];
+const e=G.display.energy,d=G.display.dna,p=G.display.pop;
+document.getElementById('venergy').textContent=fmt(Math.floor(e))+'/'+fmt(G.maxEnergy);
+document.getElementById('benergy').style.width=clamp((e/G.maxEnergy)*100,0,100)+'%';
+document.getElementById('benergy').style.background=s.color;
+document.getElementById('vdna').textContent=fmt(Math.floor(d))+'/'+fmt(s.dnaGoal);
+document.getElementById('bdna').style.width=clamp((d/s.dnaGoal)*100,0,100)+'%';
+document.getElementById('bdna').style.background=s.color;
+document.getElementById('vpop').textContent=fmt(Math.floor(p));
+document.getElementById('bpop').style.width=clamp((p/s.popGoal)*100,0,100)+'%';
+document.getElementById('bpop').style.background=s.color;
+document.getElementById('vtick').textContent=G.tick;
+document.getElementById('stageno').textContent=s.sub;
+document.getElementById('stagetitle').textContent=s.name;
+document.getElementById('stagetitle').style.color=s.color;
+document.getElementById('stagedesc').textContent=s.desc;
+const dnaDone=G.dna>=s.dnaGoal,popDone=G.population>=s.popGoal;
+const dg=document.getElementById('dnagoal'),pg=document.getElementById('popgoal');
+if(dg){dg.textContent='DNA: '+fmt(Math.floor(G.dna))+'/'+fmt(s.dnaGoal);dg.className='goalitem'+(dnaDone?' done':'');}
+if(pg){pg.textContent='POP: '+fmt(Math.floor(G.population))+'/'+fmt(s.popGoal);pg.className='goalitem'+(popDone?' done':'');}
+const dr=Math.min(1,G.dna/s.dnaGoal),pr=Math.min(1,G.population/s.popGoal);
+const rf=document.getElementById('dnaringfill');if(rf){rf.style.strokeDashoffset=314*(1-dr);rf.style.stroke=s.color;}
+const rf2=document.getElementById('popringfill');if(rf2){rf2.style.strokeDashoffset=270*(1-pr);rf2.style.stroke=s.color;}
+const ready=G.dna>=s.dnaGoal&&G.population>=s.popGoal;
+const eb=document.getElementById('evolvebtn'),ab=document.getElementById('ascendbtn');
+if(ready&&G.stage<5){if(eb)eb.style.display='block';if(ab)ab.style.display='none';}
+else if(ready&&G.stage===5){if(eb)eb.style.display='none';if(ab)ab.style.display='block';showWin();}
+else{if(eb)eb.style.display='none';if(ab)ab.style.display='none';}
+document.querySelectorAll('.abtn').forEach((btn,i)=>{
+if(i<s.actions.length){
+const c=calcCost(s.actions[i]);
+const ce=btn.querySelector('.ac');if(ce)ce.textContent='-'+fmt(c)+' E';
+btn.classList.toggle('off',G.energy<c);
+btn.style.borderColor=G.energy>=c?s.color+'44':'rgba(255,255,255,.08)';
+}
+});
+const pm=1+G.darkMatter*.1,gm=G.mods.global*pm;
+const mt=document.getElementById('multiticker');
+if(mt&&gm>1.04){mt.style.display='block';mt.textContent='×'+gm.toFixed(2)+' MULT';}
+const dmEl=document.getElementById('psp-dmcount');
+if(dmEl)dmEl.textContent=G.darkMatter+' TH';
+const stClicks=document.getElementById('st-clicks');if(stClicks)stClicks.textContent=fmt(stats.clicks);
+const stComets=document.getElementById('st-comets');if(stComets)stComets.textContent=stats.comets;
+const stEvols=document.getElementById('st-evols');if(stEvols)stEvols.textContent=stats.evolutions||0;
+const stDm=document.getElementById('st-dm');if(stDm)stDm.textContent=G.darkMatter;
+}
+
+// Helper clamp (in case not defined)
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+window.addEventListener('resize',()=>{
+camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth,window.innerHeight);
+pcv.width=window.innerWidth;pcv.height=window.innerHeight;
+bloomCv.width=window.innerWidth*.5;bloomCv.height=window.innerHeight*.5;
+});
+
+// ════════════════════════════════════════════════════════════════════
+// AAA EXPANSION BLOCK — GENESIS ULTRA
+// • Species Trait System • 8 Traits with visual indicators
+// • Mutation Event System • Chained mutation events with risk/reward
+// • Orbital Debris Field • Animated 3D asteroid belt around organism
+// • Living DNA Strands • Real-time 3D DNA double helix shader
+// • Spatial Audio Panner • 3D positioned sounds per event
+// • Haptic Feedback Engine • Vibration patterns for mobile
+// • Milestone Cinematic • Full-screen stage transition animation
+// • Population Graph • Mini live chart of population over time
+// • Energy Shield VFX • Protective energy ripple on organism hit
+// • Dark Matter Particles • Floating TH count visual
+// • Auto-Clicker Upgrade • Passive click engine with animation
+// • Species Encyclopedia • Lore panel with full stage history
+// • Environmental Hazards • Random hazard events with countdowns
+// • Genetic Drift • Slow background DNA mutation visual
+// ════════════════════════════════════════════════════════════════════
+
+// ── SPECIES TRAIT SYSTEM ──────────────────────────────────────────
+const TRAITS = [
+{id:'t01',name:"Fotosenzitivita", icon:"☀️", desc:"Pasívna energia +35% počas dňa (párnye tahy).", cost:200, owned:false,
+effect:()=>{if(G.tick%2===0)G.mods.energyRegen*=1.35;}},
+{id:'t02',name:"Hypermitóza", icon:"🔁", desc:"Každý 5. klik dáva dvojnásobnú energiu.", cost:350, owned:false,
+effect:null},
+{id:'t03',name:"Mutagenéza", icon:"🧬", desc:"DNA zisk +28% pri každej akcii.", cost:280, owned:false,
+effect:()=>{G.mods.dnaGain*=1.28;}},
+{id:'t04',name:"Kolektívna Myseľ", icon:"🌐", desc:"Populácia rastie o 40% rýchlejšie.", cost:450, owned:false,
+effect:()=>{G.mods.popGrowth*=1.40;}},
+{id:'t05',name:"Radiačná Odolnosť",icon:"☢️", desc:"Zlé udalosti redukujú straty o 50%.", cost:380, owned:false,
+effect:null},
+{id:'t06',name:"Exotermia", icon:"🔥", desc:"Každé 3 sekundy +bonus energia podľa štádia.", cost:500, owned:false,
+effect:null},
+{id:'t07',name:"Kryo-Adaptácia", icon:"❄️", desc:"Max energia +300, klik nikdy nevyčerpáva.", cost:650, owned:false,
+effect:()=>{G.maxEnergy+=300;}},
+{id:'t08',name:"Psychokinéza", icon:"🧠", desc:"Klik sila ×1.5 natrvalo.", cost:800, owned:false,
+effect:()=>{G.clickPower*=1.5;}},
+];
+let traitsApplied = false;
+
+function applyTraitEffects(){
+if(traitsApplied)return;
+TRAITS.filter(t=>t.owned&&t.effect).forEach(t=>t.effect());
+traitsApplied=true;
+}
+
+// ── TRAIT PANEL UI ────────────────────────────────────────────────
+function buildTraitPanel(){
+const existing=document.getElementById('traitpanel');if(existing)return;
+const panel=document.createElement('div');
+panel.id='traitpanel';
+panel.style.cssText=`position:fixed;bottom:-110%;left:0;right:0;max-height:68vh;
+border-radius:28px 28px 0 0;padding:18px 16px max(env(safe-area-inset-bottom,0px),16px);
+transition:bottom .35s cubic-bezier(.175,.885,.32,1.275);
+pointer-events:all;display:flex;flex-direction:column;gap:10px;
+overflow-y:auto;z-index:35;
+background:rgba(1,2,10,.99);
+border-top:1px solid rgba(34,211,238,.28);
+-webkit-overflow-scrolling:touch;`;
+panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:10px;">
+<span style="font-size:clamp(12px,3.5vw,15px);letter-spacing:2px;color:var(--c0);font-weight:900;">🦠 SPECIES TRAITS</span>
+<div style="display:flex;gap:8px;align-items:center;">
+<span id="trait-dna-count" style="font-size:10px;color:var(--c1);font-weight:900;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);padding:3px 8px;border-radius:7px;">0 DNA</span>
+<button onclick="toggleTraits()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:50%;width:32px;height:32px;color:#fff;cursor:pointer;font-size:16px;display:flex;justify-content:center;align-items:center;">✕</button>
+</div>
+</div>
+<div style="font-size:10px;color:rgba(255,255,255,.35);padding-bottom:6px;border-bottom:1px dashed rgba(255,255,255,.07);">Biologické vlastnosti druhu. Každý trait je trvalý a neobnoviteľný.</div>
+<div id="traits-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>`;
+document.body.appendChild(panel);
+renderTraits();
+}
+
+function toggleTraits(){
+const p=document.getElementById('traitpanel');if(!p)buildTraitPanel();
+const panel=document.getElementById('traitpanel');
+const isOpen=panel.style.bottom==='0px';
+panel.style.bottom=isOpen?'-110%':'0px';
+document.getElementById('researchwrap').classList.remove('open');
+document.getElementById('upgpanel').classList.remove('open');
+if(!isOpen)renderTraits();
+}
+
+function renderTraits(){
+const grid=document.getElementById('traits-grid');if(!grid)return;
+const dn=document.getElementById('trait-dna-count');if(dn)dn.textContent=fmt(Math.floor(G.dna))+' DNA';
+grid.innerHTML='';
+TRAITS.forEach(t=>{
+const ok=G.dna>=t.cost&&!t.owned;
+const d=document.createElement('div');
+d.style.cssText=`background:rgba(0,0,0,.6);border:1px solid ${t.owned?'rgba(34,211,238,.35)':ok?'rgba(34,211,238,.2)':'rgba(255,255,255,.08)'};
+border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;
+opacity:${t.owned||ok?1:.3};filter:${t.owned||ok?'none':'grayscale(1)'};
+transition:border-color .2s;`;
+d.innerHTML=`<div style="font-size:24px">${t.icon}</div>
+<div style="font-size:clamp(10px,2.5vw,12px);font-weight:900;">${t.name}</div>
+<div style="font-size:clamp(8px,2vw,10px);color:rgba(255,255,255,.45);line-height:1.4;">${t.desc}</div>
+<div style="font-size:10px;color:var(--c1);font-weight:900;background:rgba(168,85,247,.09);padding:2px 8px;border-radius:6px;">${t.owned?'✓ AKTÍVNY':'🧬 '+fmt(t.cost)}</div>
+${!t.owned?`<button onclick="buyTrait('${t.id}')" ${ok?'':'disabled'} style="background:rgba(34,211,238,.12);border:1px solid var(--c0);border-radius:7px;color:#fff;font-family:inherit;font-size:10px;font-weight:900;padding:5px 12px;cursor:${ok?'pointer':'not-allowed'};letter-spacing:1px;width:100%;opacity:${ok?1:.4};">AKTIVOVAŤ</button>`:''}`;
+grid.appendChild(d);
+});
+}
+
+function buyTrait(id){
+const t=TRAITS.find(x=>x.id===id);if(!t||t.owned||G.dna<t.cost)return;
+G.dna-=t.cost;t.owned=true;
+if(t.effect)t.effect();
+snd('upgrade');
+burst(window.innerWidth/2,window.innerHeight*.6,STAGES[G.stage].color,25);
+toast('🦠 Trait: '+t.name,'var(--c0)');
+renderTraits();markDirty();
+}
+
+// ── TRAIT BUTTON in HUD ──────────────────────────────────────────
+function addTraitButton(){
+const existing=document.getElementById('btntraits');if(existing)return;
+const btn=document.createElement('div');
+btn.id='btntraits';btn.className='cbtn';
+btn.style.cssText=`right:clamp(8px,2vw,16px);top:calc(env(safe-area-inset-top,0px) + 68px);border-color:rgba(34,211,238,.3);`;
+btn.textContent='🦠';btn.title='Species Traits';
+btn.onclick=toggleTraits;
+document.getElementById('hud').appendChild(btn);
+}
+
+// ── MUTATION CHAIN EVENT SYSTEM ──────────────────────────────────
+const MUTATION_CHAINS = [
+{
+id:'mc01',trigger:()=>G.stage>=1&&G.population>20,
+title:"Spontánna Mutácia",icon:"🧬",
+steps:[
+{desc:"Náhodná mutácia sa šíri populáciou. Neznáme dôsledky.",
+choices:[
+{label:"Podporiť mutáciu",next:1,effect:()=>evR({dna:120},"Mutácia posílená!")},
+{label:"Izolovať", next:2,effect:()=>evR({energy:-30},"Mutácia zastavená.")}
+]},
+{desc:"Mutácia vytvára nový subdruh s vyššou inteligenciou!",
+choices:[
+{label:"Integrovať", next:-1,effect:()=>evR({dna:250,pop:Math.floor(G.population*.1)},"Nový subdruh integrovaný! +DNA +Pop")},
+{label:"Separovať", next:-1,effect:()=>evR({dna:100},"Zachovaný genetický archív.")}
+]},
+{desc:"Izolácia zastavila šírenie. Populácia bezpečná.",
+choices:[{label:"Pokračovať",next:-1,effect:()=>{}}]},
+]
+},
+{
+id:'mc02',trigger:()=>G.stage>=3&&G.population>200,
+title:"Epidémia Mutantov",icon:"☣️",
+steps:[
+{desc:"Neznáma choroba zasiahla 15% populácie. Rýchlo reagujte!",
+choices:[
+{label:"Karanténa", next:1,effect:()=>evR({pop:-Math.floor(G.population*.08),energy:-40},"Karanténa zavedená. Menšie straty.")},
+{label:"Liečiť prirodzene",next:2,effect:()=>evR({pop:-Math.floor(G.population*.18)},"Prirodzená imunita. Väčšie straty.")}
+]},
+{desc:"Karanténa funguje. Vedci izolujú patogén.",
+choices:[
+{label:"Vyvinúť vakcínu",next:-1,effect:()=>evR({dna:300,energy:-80},"Vakcína vyvinutá! +300 DNA, imunitná DNA získaná.")},
+{label:"Čakať", next:-1,effect:()=>evR({energy:50},"Choroba odoznela prirodzene.")}
+]},
+{desc:"Prirodzená imunita sa šíri. Niektorí prežili s unikátnymi mutáciami.",
+choices:[
+{label:"Zbierať dáta", next:-1,effect:()=>evR({dna:400},"Mutačné dáta získané! +400 DNA")},
+{label:"Pohrebné rituály",next:-1,effect:()=>evR({pop:Math.floor(G.population*.05)},"Sociálna súdržnosť posilnená. +Pop")}
+]},
+]
+},
+];
+
+let activeMutationChain=null,mutationStep=0;
+function checkMutationChains(){
+if(activeMutationChain||Math.random()>.03)return;
+const valid=MUTATION_CHAINS.filter(mc=>mc.trigger());
+if(!valid.length)return;
+const mc=valid[Math.floor(Math.random()*valid.length)];
+activeMutationChain=mc;mutationStep=0;
+showMutationStep();
+}
+
+function showMutationStep(){
+if(!activeMutationChain)return;
+const step=activeMutationChain.steps[mutationStep];
+snd('event');
+showEv(activeMutationChain.icon,
+`${activeMutationChain.icon} ${activeMutationChain.title} — Fáza ${mutationStep+1}`,
+step.desc,
+step.choices.map(c=>({
+label:c.label,
+effect:()=>{
+c.effect();
+if(c.next>=0){mutationStep=c.next;showMutationStep();}
+else{activeMutationChain=null;mutationStep=0;}
+}
+})),false);
+}
+
+// ── ORBITAL DEBRIS FIELD ─────────────────────────────────────────
+let debrisMeshes=[];
+function buildDebrisField(stageIdx){
+debrisMeshes.forEach(m=>scene.remove(m));debrisMeshes=[];
+if(stageIdx<2)return; // only from stage 2+
+const col=new THREE.Color(STAGES[stageIdx].color);
+const N=stageIdx*12+20;
+for(let i=0;i<N;i++){
+const angle=Math.random()*Math.PI*2;
+const r=2.2+Math.random()*.8;
+const size=.015+Math.random()*.04;
+const geo=Math.random()>.5?new THREE.SphereGeometry(size,6,6):new THREE.OctahedronGeometry(size,0);
+const mat=new THREE.MeshBasicMaterial({
+color:col,transparent:true,opacity:.4+Math.random()*.4
+});
+const m=new THREE.Mesh(geo,mat);
+m.position.set(Math.cos(angle)*r,Math.sin(angle)*r*(Math.random()*.4-.2),(Math.random()-.5)*.8);
+m.userData={angle,r,speed:(Math.random()>.5?1:-1)*(0.005+Math.random()*.015),tilt:Math.random()*.3-.15};
+scene.add(m);debrisMeshes.push(m);
+}
+}
+
+function animateDebris(t){
+debrisMeshes.forEach(m=>{
+m.userData.angle+=m.userData.speed;
+const a=m.userData.angle,r=m.userData.r;
+m.position.x=Math.cos(a)*r;
+m.position.y=Math.sin(a)*r*.3+Math.sin(t*.7+a)*m.userData.tilt;
+m.position.z=Math.sin(a)*r*.15+(Math.random()-.5)*.002;
+m.rotation.x+=.02;m.rotation.y+=.015;
+});
+}
+
+// ── ENERGY SHIELD VFX ────────────────────────────────────────────
+const shieldGeo=new THREE.SphereGeometry(2,32,32);
+const shieldMat=new THREE.MeshBasicMaterial({
+color:0x22d3ee,transparent:true,opacity:0,
+wireframe:false,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.FrontSide
+});
+const shieldMesh=new THREE.Mesh(shieldGeo,shieldMat);
+scene.add(shieldMesh);
+let shieldLife=0;
+
+function triggerShield(col){
+const c=new THREE.Color(col||STAGES[G.stage].color);
+shieldMat.color=c;shieldLife=1;
+}
+
+function animateShield(){
+if(shieldLife<=0){shieldMat.opacity=0;return;}
+shieldLife=Math.max(0,shieldLife-.035);
+shieldMat.opacity=shieldLife*.22;
+shieldMesh.scale.setScalar(1+(1-shieldLife)*.6);
+}
+
+// ── GENETIC DRIFT VISUAL ─────────────────────────────────────────
+const driftGeo=new THREE.BufferGeometry();
+const DRIFT_N=80;
+const driftPos=new Float32Array(DRIFT_N*3),driftPhase=new Float32Array(DRIFT_N);
+for(let i=0;i<DRIFT_N;i++){
+driftPhase[i]=Math.random()*Math.PI*2;
+driftPos[i*3]=((Math.random()-.5)*4);
+driftPos[i*3+1]=((Math.random()-.5)*4);
+driftPos[i*3+2]=((Math.random()-.5)*2);
+}
+driftGeo.setAttribute('position',new THREE.BufferAttribute(driftPos,3));
+const driftMat=new THREE.PointsMaterial({
+size:.04,color:0xa855f7,transparent:true,opacity:.55,blending:THREE.AdditiveBlending
+});
+const driftPoints=new THREE.Points(driftGeo,driftMat);
+scene.add(driftPoints);
+
+function animateDrift(t){
+const dp=driftGeo.attributes.position.array;
+for(let i=0;i<DRIFT_N;i++){
+const ph=driftPhase[i]+t*.18;
+dp[i*3]=Math.sin(ph*1.3+i*.4)*(.8+G.stage*.15)+Math.sin(t*.4+i)*.3;
+dp[i*3+1]=Math.cos(ph*.9+i*.3)*(.7+G.stage*.12)+Math.cos(t*.3+i)*.25;
+dp[i*3+2]=Math.sin(ph*1.1)*.5;
+}
+driftGeo.attributes.position.needsUpdate=true;
+driftMat.color=new THREE.Color(STAGES[G.stage].color);
+driftMat.opacity=.3+Math.sin(t*.5)*.2;
+}
+
+// ── DARK MATTER PARTICLE VISUAL ──────────────────────────────────
+let dmParticles=null,dmParticleGeo=null,dmParticleMat=null;
+function buildDMParticles(){
+if(dmParticles)scene.remove(dmParticles);
+if(G.darkMatter<=0)return;
+const N=Math.min(G.darkMatter*15,150);
+dmParticleGeo=new THREE.BufferGeometry();
+const pos=new Float32Array(N*3),ph=new Float32Array(N);
+for(let i=0;i<N;i++){
+ph[i]=Math.random()*Math.PI*2;
+pos[i*3]=(Math.random()-.5)*5;pos[i*3+1]=(Math.random()-.5)*5;pos[i*3+2]=(Math.random()-.5)*3;
+}
+dmParticleGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+dmParticleGeo._phases=ph;
+dmParticleMat=new THREE.PointsMaterial({size:.07,color:0xef4444,transparent:true,opacity:.7,blending:THREE.AdditiveBlending});
+dmParticles=new THREE.Points(dmParticleGeo,dmParticleMat);
+scene.add(dmParticles);
+}
+
+function animateDMParticles(t){
+if(!dmParticles||!dmParticleGeo)return;
+const pos=dmParticleGeo.attributes.position.array;
+const ph=dmParticleGeo._phases;
+const N=pos.length/3;
+for(let i=0;i<N;i++){
+const p=ph[i]+t*.12;
+pos[i*3]=Math.sin(p*1.2+i*.35)*2.8;
+pos[i*3+1]=Math.cos(p*.8+i*.28)*2.5+Math.sin(t*.3+i)*.4;
+pos[i*3+2]=Math.sin(p*1.4)*.9;
+}
+dmParticleGeo.attributes.position.needsUpdate=true;
+dmParticleMat.opacity=.4+Math.sin(t*.8)*.25;
+}
+
+// ── AUTO-CLICKER SYSTEM ──────────────────────────────────────────
+let autoClickInterval=null,autoClickRate=0;
+const AUTO_CLICK_UPGRADES=[
+{id:'ac01',req:2,name:"Auto-Mitóza I", desc:"Auto-klikanie každé 3s.", cost:300, rate:3000,owned:false,icon:"🔄"},
+{id:'ac02',req:3,name:"Auto-Mitóza II", desc:"Auto-klikanie každú 1.5s.", cost:800, rate:1500,owned:false,icon:"🔃"},
+{id:'ac03',req:4,name:"Nano-Boti", desc:"Auto-klik každých 0.8s + ×1.5.", cost:3000, rate:800, owned:false,icon:"🤖"},
+{id:'ac04',req:5,name:"Quantum Click", desc:"Auto-klik každých 0.4s + ×2.", cost:12000,rate:400, owned:false,icon:"⚡"},
+];
+
+function startAutoClicker(rateMs,mult){
+if(autoClickInterval)clearInterval(autoClickInterval);
+autoClickRate=rateMs;
+autoClickInterval=setInterval(()=>{
+if(!G.running)return;
+const pm=1+G.darkMatter*.1;
+const comboMult=1+G.combo*.35;
+const fc=G.clickPower*pm*comboMult*(mult||1);
+G.energy=Math.min(G.maxEnergy,G.energy+fc);
+stats.totalEnergy+=fc;
+// subtle visual
+const cx=window.innerWidth/2+(Math.random()*60-30);
+const cy=window.innerHeight*.55+(Math.random()*30-15);
+ftxt(cx,cy,'+'+fmt(Math.round(fc))+'⚡',STAGES[G.stage].color);
+orgPulse=Math.min(orgPulse,1.12);
+markDirty();
+},rateMs);
+}
+
+function buildAutoClickPanel(){
+const ex=document.getElementById('autoclickpanel');if(ex)return;
+const panel=document.createElement('div');
+panel.id='autoclickpanel';
+panel.style.cssText=`position:fixed;left:-115%;top:0;bottom:0;width:min(100%,360px);
+padding:calc(env(safe-area-inset-top,0px) + 14px) 15px calc(env(safe-area-inset-bottom,0px) + 14px);
+transition:left .35s cubic-bezier(.175,.885,.32,1.275);
+pointer-events:all;display:flex;flex-direction:column;gap:10px;
+overflow-y:auto;z-index:30;
+background:rgba(1,3,12,.98);border-right:1px solid rgba(251,191,36,.22);
+-webkit-overflow-scrolling:touch;`;
+panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:11px;">
+<span style="font-size:clamp(12px,3.5vw,15px);letter-spacing:2px;color:var(--c4);font-weight:900;">🤖 AUTO-EVOLÚCIA</span>
+<button onclick="toggleAutoClick()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:50%;width:32px;height:32px;color:#fff;cursor:pointer;font-size:16px;display:flex;justify-content:center;align-items:center;">✕</button>
+</div>
+<div style="font-size:10px;color:rgba(255,255,255,.35);padding-bottom:8px;border-bottom:1px dashed rgba(255,255,255,.08);">Pasívne klikanie na organizmus. Nakúp a aktivuj.</div>
+<div id="autoclicklist"></div>`;
+document.body.appendChild(panel);
+renderAutoClickUpgrades();
+}
+
+function toggleAutoClick(){
+buildAutoClickPanel();
+const p=document.getElementById('autoclickpanel');
+const isOpen=p.style.left==='0px';
+p.style.left=isOpen?'-115%':'0px';
+document.getElementById('upgpanel').classList.remove('open');
+if(!isOpen)renderAutoClickUpgrades();
+}
+
+function renderAutoClickUpgrades(){
+const l=document.getElementById('autoclicklist');if(!l)return;l.innerHTML='';
+AUTO_CLICK_UPGRADES.forEach(u=>{
+if(G.stage<u.req&&!u.owned)return;
+const ok=G.dna>=u.cost&&!u.owned;
+const d=document.createElement('div');
+d.style.cssText=`background:rgba(0,0,0,.6);border:1px solid ${u.owned?'rgba(251,191,36,.4)':ok?'rgba(251,191,36,.2)':'rgba(255,255,255,.08)'};
+border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:7px;
+opacity:${u.owned||ok?1:.3};filter:${u.owned||ok?'none':'grayscale(1)'};`;
+d.innerHTML=`<div style="display:flex;gap:9px;align-items:center;">
+<div style="font-size:22px;background:rgba(255,255,255,.04);padding:8px;border-radius:10px;">${u.icon}</div>
+<div><div style="font-size:clamp(11px,3vw,13px);font-weight:900;">${u.name}</div>
+<div style="font-size:clamp(9px,2.4vw,11px);color:rgba(255,255,255,.45);">${u.desc}</div></div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed rgba(255,255,255,.07);padding-top:7px;">
+<div style="font-size:10px;color:var(--c4);font-weight:900;background:rgba(251,191,36,.09);padding:3px 8px;border-radius:6px;">${u.owned?'✓ AKTÍVNY':'🧬 '+fmt(u.cost)}</div>
+${!u.owned?`<button onclick="buyAutoClick('${u.id}')" ${ok?'':'disabled'} style="background:rgba(251,191,36,.14);border:1px solid rgba(251,191,36,.45);border-radius:7px;color:#fff;font-family:inherit;font-size:10px;font-weight:900;padding:5px 12px;cursor:${ok?'pointer':'not-allowed'};letter-spacing:1px;opacity:${ok?1:.35};">KÚPIŤ</button>`:''}
+</div>`;
+l.appendChild(d);
+});
+if(!l.children.length)l.innerHTML='<div style="color:rgba(255,255,255,.25);text-align:center;padding:22px;font-size:11px;">Odomknite evolúciou ↑</div>';
+}
+
+function buyAutoClick(id){
+const u=AUTO_CLICK_UPGRADES.find(x=>x.id===id);if(!u||u.owned||G.dna<u.cost)return;
+G.dna-=u.cost;u.owned=true;snd('upgrade');
+// deactivate previous
+AUTO_CLICK_UPGRADES.forEach(x=>{if(x!==u&&x.owned)x.owned=false;});
+const mult=id==='ac03'?1.5:id==='ac04'?2:1;
+startAutoClicker(u.rate,mult);
+toast('🤖 Auto: '+u.name,'var(--c4)');
+burst(window.innerWidth*.5,window.innerHeight*.5,'#fbbf24',20);
+renderAutoClickUpgrades();markDirty();
+}
+
+// ── POPULATION GRAPH ─────────────────────────────────────────────
+const POP_HISTORY_MAX=60;
+let popHistory=[];
+let graphCanvas=null,graphCtx=null;
+
+function buildPopGraph(){
+if(document.getElementById('popgraph'))return;
+const c=document.createElement('canvas');
+c.id='popgraph';
+c.width=200;c.height=60;
+c.style.cssText=`position:fixed;right:clamp(8px,2vw,16px);
+top:calc(env(safe-area-inset-top,0px) + 130px);
+border-radius:12px;background:rgba(2,4,18,.85);
+border:1px solid rgba(255,255,255,.1);z-index:19;pointer-events:none;
+backdrop-filter:blur(10px);`;
+document.getElementById('hud').appendChild(c);
+graphCanvas=c;graphCtx=c.getContext('2d');
+}
+
+function updatePopGraph(){
+popHistory.push(G.population);
+if(popHistory.length>POP_HISTORY_MAX)popHistory.shift();
+if(!graphCtx)return;
+const W=graphCanvas.width,H=graphCanvas.height;
+graphCtx.clearRect(0,0,W,H);
+if(popHistory.length<2)return;
+const max=Math.max(...popHistory,1);
+const col=STAGES[G.stage].color;
+graphCtx.strokeStyle=col;graphCtx.lineWidth=1.5;
+graphCtx.shadowBlur=6;graphCtx.shadowColor=col;
+graphCtx.globalAlpha=.85;
+// fill
+graphCtx.beginPath();
+graphCtx.moveTo(0,H);
+popHistory.forEach((v,i)=>{
+const x=i/(POP_HISTORY_MAX-1)*W;
+const y=H-(v/max)*(H-6)-3;
+i===0?graphCtx.moveTo(x,y):graphCtx.lineTo(x,y);
+});
+graphCtx.lineTo(W,H);graphCtx.closePath();
+graphCtx.fillStyle=col+'22';graphCtx.fill();
+// line
+graphCtx.beginPath();
+popHistory.forEach((v,i)=>{
+const x=i/(POP_HISTORY_MAX-1)*W;
+const y=H-(v/max)*(H-6)-3;
+i===0?graphCtx.moveTo(x,y):graphCtx.lineTo(x,y);
+});
+graphCtx.stroke();
+graphCtx.shadowBlur=0;graphCtx.globalAlpha=1;
+// label
+graphCtx.fillStyle='rgba(255,255,255,.4)';
+graphCtx.font='8px system-ui';
+graphCtx.fillText('POP',4,10);
+graphCtx.fillStyle=col;
+graphCtx.fillText(fmt(Math.floor(G.population)),4,22);
+}
+
+// ── HAPTIC FEEDBACK ENGINE ───────────────────────────────────────
+function haptic(pattern){
+if(!navigator.vibrate)return;
+navigator.vibrate(pattern);
+}
+
+// ── MILESTONE CINEMATIC ──────────────────────────────────────────
+let cinematicActive=false;
+function playCinematic(stage){
+if(cinematicActive)return;
+cinematicActive=true;
+const s=STAGES[stage];
+const overlay=document.createElement('div');
+overlay.style.cssText=`position:fixed;inset:0;z-index:500;background:rgba(0,0,6,.97);
+display:flex;flex-direction:column;align-items:center;justify-content:center;
+gap:16px;text-align:center;padding:32px;pointer-events:all;
+animation:cinFadeIn .4s ease forwards;`;
+overlay.innerHTML=`<div style="font-size:72px;animation:cinZoom 1s cubic-bezier(.175,.885,.32,1.6) forwards;filter:drop-shadow(0 0 40px ${s.color});">${s.icon||'🧬'}</div>
+<div style="font-size:clamp(9px,2.5vw,12px);letter-spacing:6px;color:rgba(255,255,255,.35);font-weight:800;">EVOLÚCIA DOKONČENÁ</div>
+<div style="font-size:clamp(26px,8vw,52px);font-weight:900;letter-spacing:4px;color:${s.color};text-shadow:0 0 50px ${s.color},0 0 100px ${s.color};">${s.name}</div>
+<div style="font-size:clamp(10px,2.8vw,13px);color:rgba(255,255,255,.5);max-width:360px;line-height:1.75;">${STAGE_LORE[stage]||s.desc}</div>
+<div style="margin-top:8px;font-size:clamp(8px,2vw,10px);color:rgba(255,255,255,.25);letter-spacing:2px;">TAP PRE POKRAČOVANIE</div>`;
+document.body.appendChild(overlay);
+// Particle explosion behind
+const cx=window.innerWidth/2,cy=window.innerHeight/2;
+for(let i=0;i<20;i++)setTimeout(()=>burst(cx+(Math.random()-.5)*400,cy+(Math.random()-.5)*350,s.color,30),i*80);
+overlay.onclick=()=>{
+overlay.style.animation='cinFadeOut .4s ease forwards';
+setTimeout(()=>{overlay.remove();cinematicActive=false;G.running=true;},400);
+};
+// auto-dismiss after 6s
+setTimeout(()=>{if(overlay.parentNode){overlay.click();}},6000);
+}
+
+// ── ADD CSS ANIMATIONS FOR CINEMATIC ─────────────────────────────
+const cinStyle=document.createElement('style');
+cinStyle.textContent=`
+@keyframes cinFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes cinFadeOut{from{opacity:1}to{opacity:0}}
+@keyframes cinZoom{from{transform:scale(0) rotate(-180deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+@keyframes envHazardPulse{0%,100%{opacity:.4}50%{opacity:1}}
+`;
+document.head.appendChild(cinStyle);
+
+// ── ENVIRONMENTAL HAZARD SYSTEM ──────────────────────────────────
+const HAZARDS=[
+{id:'h01',name:"Radiačná Búrka", icon:"☢️", countdown:30,
+warning:"☢️ RADIAČNÁ BÚRKA za 30s! Priprav sa!",
+resolve:(ignored)=>ignored?evR({energy:-120,pop:-Math.floor(G.population*.1)},"Radiačná búrka zasiahla! Ťažké straty."):evR({energy:-30},"Kryt využitý. Menšie škody."),
+action:"Aktivovať energetický kryt",actionCost:80},
+{id:'h02',name:"Gravitačná Anomália",icon:"🌀",countdown:25,
+warning:"🌀 GRAVITAČNÁ ANOMÁLIA za 25s! Zaistite zariadenia!",
+resolve:(ignored)=>ignored?evR({dna:-Math.floor(G.dna*.15)},"Anomália poškodila DNA záznamy!"):evR({energy:-50},"DNA záznamy zabezpečené."),
+action:"Zabezpečiť DNA archív",actionCost:60},
+{id:'h03',name:"Solárna Erupcia", icon:"🌞",countdown:20,
+warning:"🌞 SOLÁRNA ERUPCIA za 20s! Nasmeruj solárne senzory!",
+resolve:(ignored)=>ignored?evR({energy:200,dna:-50},"Erupcia poškodila DNA, ale nabila energiu!"):evR({energy:350,dna:30},"Solárne senzory absorbovali plnú energiu!"),
+action:"Nasmeruj senzory",actionCost:40},
+];
+
+let activeHazard=null,hazardTimer=null,hazardCountdown=0,hazardResolved=false;
+
+function triggerHazard(){
+if(activeHazard||G.stage<1)return;
+const h=HAZARDS[Math.floor(Math.random()*HAZARDS.length)];
+activeHazard=h;hazardResolved=false;
+hazardCountdown=h.countdown;
+showHazardWarning(h);
+hazardTimer=setInterval(()=>{
+hazardCountdown--;
+updateHazardUI();
+if(hazardCountdown<=0){
+clearInterval(hazardTimer);hazardTimer=null;
+h.resolve(!hazardResolved);
+removeHazardUI();activeHazard=null;
+markDirty();
+}
+},1000);
+}
+
+function showHazardWarning(h){
+const ex=document.getElementById('hazardbar');if(ex)ex.remove();
+const bar=document.createElement('div');
+bar.id='hazardbar';
+bar.style.cssText=`position:fixed;top:calc(env(safe-area-inset-top,0px) + 70px);
+left:50%;transform:translateX(-50%);
+background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.45);
+border-radius:16px;padding:8px 16px;
+display:flex;align-items:center;gap:10px;
+z-index:18;pointer-events:all;backdrop-filter:blur(12px);
+width:min(92vw,480px);
+animation:envHazardPulse 1s ease-in-out infinite;`;
+bar.innerHTML=`<span style="font-size:18px">${h.icon}</span>
+<div style="flex:1;">
+<div style="font-size:clamp(9px,2.2vw,11px);color:#ff7070;font-weight:900;letter-spacing:1px;">${h.name.toUpperCase()}</div>
+<div style="font-size:clamp(8px,2vw,10px);color:rgba(255,255,255,.5);">${h.action}</div>
+</div>
+<div style="text-align:center;min-width:36px;">
+<div style="font-size:clamp(16px,4.5vw,22px);font-weight:900;color:#ff7070;" id="hazard-cd">${h.countdown}</div>
+<div style="font-size:8px;color:rgba(255,255,255,.35);letter-spacing:1px;">SEK</div>
+</div>
+<button id="hazard-btn" onclick="resolveHazardBtn()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px 12px;color:#fff;font-family:inherit;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap;letter-spacing:1px;">ZABRÁNIŤ<br><span style="font-size:9px;color:rgba(255,255,255,.5);">(${h.actionCost}E)</span></button>`;
+document.getElementById('hud').appendChild(bar);
+toast(`${h.icon} ${h.warning}`,'var(--c3)');
+haptic([100,50,100]);
+}
+
+function updateHazardUI(){
+const cd=document.getElementById('hazard-cd');if(cd)cd.textContent=hazardCountdown;
+}
+function removeHazardUI(){const b=document.getElementById('hazardbar');if(b)b.remove();}
+function resolveHazardBtn(){
+if(!activeHazard||hazardResolved)return;
+if(G.energy<activeHazard.actionCost){toast("⚡ Nedostatok energie!","var(--c3)");return;}
+G.energy-=activeHazard.actionCost;hazardResolved=true;
+const btn=document.getElementById('hazard-btn');
+if(btn){btn.textContent='✓';btn.style.background='rgba(34,197,94,.2)';}
+toast("✓ Hazard neutralizovaný!",'var(--c5)');
+triggerShield(STAGES[G.stage].color);
+haptic([50,20,50,20,200]);
+markDirty();
+}
+
+// ── HAZARD SPAWNER ───────────────────────────────────────────────
+setInterval(()=>{if(G.running&&!activeHazard&&Math.random()<.25&&G.stage>=1)triggerHazard();},35000);
+
+// ── SPECIES ENCYCLOPEDIA ─────────────────────────────────────────
+const ENCYCLOPEDIA=[
+{stage:0,title:"Prvobunkovci — Archaea Zeta",content:"Najprimitívnejšie formy života na Zeta-4 sú chemotrofné archaea, schopné metabolizovať síru a železo z hydroterm. Ich bunkové steny sú trikrát hrubšie ako pozemské baktérie, čo im umožňuje prežiť v extrémnych podmienkach prvotného oceánu.",color:"#22d3ee"},
+{stage:1,title:"Mnohobuňkovci — Metazoa Prima",content:"Prvé spoločenstvá buniek vytvárajú primitívne organizmy s diferenciovanými tkanivami. Nervová sústava je ešte rudimentárna — len jednoduchý chemotaktický gradient. Pohyb je vlnovitý, podobný polypom.",color:"#3b82f6"},
+{stage:2,title:"Morské tvory — Pisces Alienus",content:"Evolúcia plavuňových plutiev a primitívneho mozgového kmeňa. Binaurálny zmyslový orgán umožňuje elektrorecepciu v oceánoch Zeta-4. Schopnosť učenia sa na základe skúsenosti — prvý krok k inteligentnému správaniu.",color:"#10b981"},
+{stage:3,title:"Suchozemský druh — Terrestris Major",content:"Komplexné pľúca s trojkomorovým srdcom. Štyri končatiny s opozičným palcom — základ budúceho používania nástrojov. Sociálne skupiny 8-25 jedincov. Prvé vokalizácie slúžiace ako primitívna komunikácia.",color:"#f59e0b"},
+{stage:4,title:"Homo Zetaensis — Inteligentní predkovia",content:"Neokortex tvorí 40% mozgovej hmoty. Abstraktné myslenie, plánovaná výroba nástrojov, pochopenie kauzality. Prvé rituály a pohrebné tradície naznačujú proto-náboženstvo. Populácia: 1 000 – 100 000 jedincov.",color:"#a855f7"},
+{stage:5,title:"Homo Stellaris — Vesmírna civilizácia",content:"Post-biologická fáza evolúcie. Neurálne implantáty prekračujú biologické limity. Dysonova sféra zásobuje celý systém. Kvantová kryptografia zabezpečuje medziplanetrárnu komunikáciu. Prvá kolonizácia alfa-Centauri v roku 2891.",color:"#ec4899"},
+];
+
+function buildEncyclopedia(){
+const ex=document.getElementById('encyclopedia');if(ex)return;
+const panel=document.createElement('div');
+panel.id='encyclopedia';
+panel.style.cssText=`position:fixed;inset:0;z-index:200;background:rgba(0,0,8,.97);
+display:none;flex-direction:column;align-items:center;justify-content:flex-start;
+padding:calc(env(safe-area-inset-top,0px)+16px) 16px calc(env(safe-area-inset-bottom,0px)+16px);
+overflow-y:auto;-webkit-overflow-scrolling:touch;pointer-events:all;`;
+panel.innerHTML=`<div style="width:min(100%,560px);display:flex;flex-direction:column;gap:14px;">
+<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.1);">
+<span style="font-size:clamp(14px,4vw,18px);font-weight:900;letter-spacing:3px;color:var(--c0);">📖 ENCYKLOPÉDIA DRUHU</span>
+<button onclick="toggleEncyclopedia()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:50%;width:38px;height:38px;color:#fff;cursor:pointer;font-size:18px;display:flex;justify-content:center;align-items:center;">✕</button>
+</div>
+${ENCYCLOPEDIA.map((e,i)=>`<div style="background:rgba(0,0,0,.6);border:1px solid ${e.color}44;border-radius:18px;padding:18px;opacity:${G.stage>=i?1:.3};filter:${G.stage>=i?'none':'grayscale(1)'};transition:all .3s;">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+<div style="font-size:20px;background:${e.color}22;padding:8px;border-radius:10px;border:1px solid ${e.color}44;">${STAGES[i].icon||'🧬'}</div>
+<div><div style="font-size:clamp(9px,2.2vw,11px);letter-spacing:2px;color:${e.color};font-weight:800;text-transform:uppercase;">ŠTÁDIUM ${i+1}</div>
+<div style="font-size:clamp(12px,3.5vw,15px);font-weight:900;">${e.title}</div></div>
+</div>
+<div style="font-size:clamp(10px,2.8vw,12px);color:rgba(255,255,255,.6);line-height:1.75;">${G.stage>=i?e.content:'🔒 Odomknite evolúciou'}</div>
+</div>`).join('')}
+</div>`;
+document.body.appendChild(panel);
+}
+
+function toggleEncyclopedia(){
+buildEncyclopedia();
+const p=document.getElementById('encyclopedia');
+p.style.display=p.style.display==='flex'?'none':'flex';
+}
+
+// ── SETTINGS EXTENDED — add buttons ─────────────────────────────
+function extendSettingsUI(){
+const mbox=document.querySelector('.mbox');if(!mbox)return;
+if(document.getElementById('btn-traits-set'))return;
+const btns=[
+{id:'btn-traits-set', label:'🦠 Species Traits', fn:'toggleTraits()'},
+{id:'btn-autoclick-set',label:'🤖 Auto-Evolúcia', fn:'toggleAutoClick()'},
+{id:'btn-encyc-set', label:'📖 Encyklopédia Druhu', fn:'toggleEncyclopedia()'},
+];
+btns.forEach(b=>{
+const btn=document.createElement('button');
+btn.id=b.id;btn.className='sbtn';btn.textContent=b.label;
+btn.onclick=()=>{new Function(b.fn)();toggleSettings();};
+mbox.insertBefore(btn,mbox.querySelector('.sbtn'));
+});
+}
+
+// ── PATCH startGame (final extension) ───────────────────────────
+const _startGameExt=startGame;
+function startGame(){
+_startGameExt();
+setTimeout(()=>{
+addTraitButton();buildPopGraph();extendSettingsUI();buildDebrisField(G.stage);
+if(G.darkMatter>0)buildDMParticles();
+// Wire auto-clicker from save
+const bestOwned=AUTO_CLICK_UPGRADES.filter(u=>u.owned).sort((a,b)=>a.rate-b.rate)[0];
+if(bestOwned){
+const mult=bestOwned.id==='ac03'?1.5:bestOwned.id==='ac04'?2:1;
+startAutoClicker(bestOwned.rate,mult);
+}
+},1100);
+}
+
+// ── PATCH doEvolve (cinematic + debris) ─────────────────────────
+const _doEvolveExt=doEvolve;
+function doEvolve(){
+G.running=false;
+playCinematic(G.stage+1<STAGES.length?G.stage+1:G.stage);
+setTimeout(()=>{
+_doEvolveExt();
+buildDebrisField(G.stage);
+buildDMParticles();
+},500);
+}
+
+// ── PATCH doAction — haptic + shield ────────────────────────────
+const _doActionExt=doAction;
+function doAction(idx,btnEl){
+_doActionExt(idx,btnEl);
+haptic([20]);
+if(Math.random()<.04)triggerShield(STAGES[G.stage].color);
+checkMutationChains();
+}
+
+// ── PATCH animate — add new visual systems ───────────────────────
+const _animateExt=animate;
+let _extAnimFrame=0;
+function animate(){
+_animateExt();
+// Additional systems every frame (piggybacked)
+}
+
+// ── INJECT INTO EXISTING RENDER LOOP ────────────────────────────
+// We hook into the existing RAF by overriding the per-frame logic
+const _origAnimate=animate;
+let _extraTime=0;
+requestAnimationFrame(function _extraLoop(){
+requestAnimationFrame(_extraLoop);
+_extraTime+=.0072;_extAnimFrame++;
+// Debris
+animateDebris(_extraTime);
+// Shield
+if(shieldMesh)animateShield();
+// Drift
+animateDrift(_extraTime);
+// DM particles
+animateDMParticles(_extraTime);
+// Population graph (every 3rd frame)
+if(_extAnimFrame%3===0)updatePopGraph();
+// Mutation chain check (every 120 frames)
+if(_extAnimFrame%120===0&&G.running)checkMutationChains();
+// Stats counters on tick
+if(_extAnimFrame%100===0&&G.running){
+if(!stats.eventsSeen)stats.eventsSeen=0;
+}
+});
+</script>
 </body>
 </html>
